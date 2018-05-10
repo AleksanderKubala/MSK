@@ -66,7 +66,7 @@ public abstract class BasicFederate {
         log( "Joined Federation as " + federateName );
     }
 
-    protected void setSynchronizationPoint() throws RTIexception{
+    protected void registerSynchronizationPoint() throws RTIexception{
         rtiAmbassador.registerFederationSynchronizationPoint( READY_TO_RUN, null );
         // wait until the point is announced
         while(!federateAmbassador.isAnnounced())

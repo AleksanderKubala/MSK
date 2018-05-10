@@ -59,6 +59,21 @@ public class TableFederate extends BasicFederate {
     @Override
     protected void runFederate(String federateName) throws RTIexception {
 
+        rtiAmbassador = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
+        createFederation();
+        federateAmbassador = new TableAmbassador();
+        joinFederation("Table");
+        registerSynchronizationPoint();
+        awaitFederationSynchronization();
+        setTimePolicy(true, true);
+        publishAndSubscribe();
+        registerTableInstances();
+        setTableInstancesAttributes(federateAmbassador.getFederateTime());
+
+        while(federateAmbassador.isRunning()) {
+            log("Infinite loop - runFederate()");
+        }
+
     }
 
     private void registerTableInstances() throws RTIexception{
