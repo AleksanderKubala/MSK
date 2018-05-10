@@ -1,0 +1,49 @@
+(FED
+  (Federation Msk)
+  (FEDversion v1.3)
+  (spaces
+    (space MskSpace
+      (dimension MskDimension)
+    )
+    (space OtherSpace
+      (dimension OtherDimension)
+    )
+  )
+  (objects
+    (class ObjectRoot
+      (attribute privilegeToDelete reliable timestamp)
+      (class RTIprivate)
+      (class Table
+        (attribute tableNumber reliable timestamp)
+        (attribute freeSeatsNow reliable timestamp)
+      )
+      (class Dish
+        (attribute dishNumber reliable timestamp)
+        (attribute consumptionTime reliable timestamp)
+      )
+    )
+  )
+  (interactions
+    (class InteractionRoot reliable timestamp
+      (class RTIprivate reliable timestamp)
+      (class TableInteraction reliable timestamp
+        (parameter tableNumber)
+        (class SeatTaken reliable timestamp)
+        (class SeatFreed reliable timestamp)
+      )
+      (class ClientInteraction reliable timestamp
+        (parameter clientNumber)
+        (class ClientLeftQueue reliable timestamp)
+        (class ClientWaiting reliable timestamp)
+        (class ClientServiced reliable timestamp
+            (parameter waiterNumber)
+        )
+        (class DishOrderInteraction reliable timestamp
+            (parameter dishNumber)
+            (class OrderPlaced reliable timestamp)
+            (class OrderFilled reliable timestamp)
+        )
+      )
+    )
+  )
+)
