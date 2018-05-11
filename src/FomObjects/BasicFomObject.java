@@ -1,14 +1,16 @@
 package FomObjects;
 
+import hla.rti1516e.ObjectInstanceHandle;
+
 public abstract class BasicFomObject {
 
-    private int instanceHandle;
+    private ObjectInstanceHandle instanceHandle;
 
-    BasicFomObject(int instanceHandle) {
+    BasicFomObject(ObjectInstanceHandle instanceHandle) {
         this.instanceHandle = instanceHandle;
     }
 
-    public int getInstanceHandle() {
+    public ObjectInstanceHandle getInstanceHandle() {
         return instanceHandle;
     }
 }

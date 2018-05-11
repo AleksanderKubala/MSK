@@ -1,9 +1,13 @@
 package Federates;
 
 import Ambassadors.BasicAmbassador;
-import hla.rti.*;
-import org.portico.impl.hla13.types.DoubleTime;
-import org.portico.impl.hla13.types.DoubleTimeInterval;
+import hla.rti1516e.*;
+import hla.rti1516e.encoding.EncoderFactory;
+import hla.rti1516e.exceptions.FederatesCurrentlyJoined;
+import hla.rti1516e.exceptions.FederationExecutionAlreadyExists;
+import hla.rti1516e.exceptions.FederationExecutionDoesNotExist;
+import hla.rti1516e.exceptions.RTIexception;
+import hla.rti1516e.time.HLAfloat64TimeFactory;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -14,6 +18,8 @@ public abstract class BasicFederate {
 
     protected RTIambassador rtiAmbassador;
     protected BasicAmbassador federateAmbassador;
+    protected HLAfloat64TimeFactory timeFactory; // set when we join
+    public EncoderFactory encoderFactory;
 
     protected String signature;
 
@@ -31,12 +37,12 @@ public abstract class BasicFederate {
 
     protected LogicalTime convertTime(double time )
     {
-        return new DoubleTime( time );
+        return timeFactory.makeTime(time);
     }
 
     protected LogicalTimeInterval convertInterval(double time )
     {
-        return new DoubleTimeInterval( time );
+        return timeFactory.makeInterval( time );
     }
 
     protected boolean createFederation() throws RTIexception{
@@ -62,7 +68,11 @@ public abstract class BasicFederate {
     }
 
     protected void joinFederation(String federateName) throws RTIexception {
-        rtiAmbassador.joinFederationExecution( federateName, "ExampleFederation", federateAmbassador );
+        rtiAmbassador.joinFederationExecution( federateName,            // name for the federate
+                "BasicFederate",   // federate type
+                "Federation" ); // name of federation
+
+
         log( "Joined Federation as " + federateName );
     }
 
@@ -71,7 +81,7 @@ public abstract class BasicFederate {
         // wait until the point is announced
         while(!federateAmbassador.isAnnounced())
         {
-            rtiAmbassador.tick();
+            rtiAmbassador.evokeMultipleCallbacks( 0.1, 0.2 );
         }
     }
 
@@ -80,12 +90,12 @@ public abstract class BasicFederate {
         log( "Achieved sync point: " +READY_TO_RUN+ ", waiting for federation..." );
         while(!federateAmbassador.isReadyToRun())
         {
-            rtiAmbassador.tick();
+            rtiAmbassador.evokeMultipleCallbacks( 0.1, 0.2 );
         }
     }
 
     protected void finish() throws RTIexception {
-        rtiAmbassador.resignFederationExecution( ResignAction.NO_ACTION );
+        rtiAmbassador.resignFederationExecution( ResignAction.DELETE_OBJECTS );
         log( "Resigned from Federation" );
 
         try
@@ -105,21 +115,21 @@ public abstract class BasicFederate {
 
     protected void setTimePolicy(boolean timeConstrained, boolean timeRegulating) throws RTIexception{
 
-        LogicalTime currentTime = convertTime( federateAmbassador.getFederateTime() );
         LogicalTimeInterval lookahead = convertInterval( federateAmbassador.getFederateLookahead() );
+        //LogicalTimeInterval interval = timeFactory.makeInterval()
 
         if(timeRegulating) {
-            rtiAmbassador.enableTimeRegulation(currentTime, lookahead);
+            rtiAmbassador.enableTimeRegulation(lookahead);
             while(!federateAmbassador.isRegulating())
             {
-                rtiAmbassador.tick();
+                rtiAmbassador.evokeMultipleCallbacks( 0.1, 0.2);
             }
         }
 
         if(timeConstrained) {
             rtiAmbassador.enableTimeConstrained();
             while(!federateAmbassador.isConstrained())            {
-                rtiAmbassador.tick();
+                rtiAmbassador.evokeMultipleCallbacks( 0.1, 0.2);
             }
         }
     }
@@ -127,28 +137,28 @@ public abstract class BasicFederate {
     protected void advanceTime( double timestep ) throws RTIexception
     {
         federateAmbassador.setAdvancing(true);
-        LogicalTime newTime = convertTime( federateAmbassador.getFederateTime() + timestep );
+        LogicalTime newTime = convertTime( timestep );
         rtiAmbassador.timeAdvanceRequest( newTime );
 
         while( federateAmbassador.isAdvancing() )
         {
-            rtiAmbassador.tick();
+            rtiAmbassador.evokeMultipleCallbacks( 0.1, 0.2 );
         }
     }
 
-    protected void deleteObject( int handle ) throws RTIexception
+    protected void deleteObject( ObjectInstanceHandle handle ) throws RTIexception
     {
         rtiAmbassador.deleteObjectInstance( handle, generateTag() );
     }
 
-    protected double getLbts()
+    protected short getTimeAsShort()
     {
-        return federateAmbassador.getFederateTime() + federateAmbassador.getFederateLookahead();
+        return (short)federateAmbassador.getFederateTime();
     }
 
-    protected byte[] generateTag()
+    private byte[] generateTag()
     {
-        return (""+System.currentTimeMillis()).getBytes();
+        return ("(timestamp) "+System.currentTimeMillis()).getBytes();
     }
 
 }

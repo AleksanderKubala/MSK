@@ -1,35 +1,40 @@
 package Ambassadors;
 
 import Federates.BasicFederate;
-import hla.rti.*;
+import FomInteractions.Interaction;
+import hla.rti1516e.*;
+import hla.rti1516e.FederateAmbassador;
+import hla.rti1516e.time.HLAfloat64Time;
 
-import hla.rti.LogicalTime;
-import hla.rti.jlc.EncodingHelpers;
-import hla.rti.jlc.NullFederateAmbassador;
-
-import org.portico.impl.hla13.types.DoubleTime;
+import java.util.ArrayList;
+import java.util.List;
 
 public class BasicAmbassador extends NullFederateAmbassador {
 
-    private double federateTime;
-    private double federateTimeStep;
-    private double federateLookahead;
+    protected double federateTime;
+    protected double federateTimeStep;
+    protected double federateLookahead;
+    protected double grantedTime;
 
-    private boolean isRegulating;
-    private boolean isConstrained;
-    private boolean isAdvancing;
+    protected boolean isRegulating;
+    protected boolean isConstrained;
+    protected boolean isAdvancing;
 
-    private boolean isAnnounced;
-    private boolean isReadyToRun;
+    protected boolean isAnnounced;
+    protected boolean isReadyToRun;
 
-    private boolean running;
+    protected boolean running;
 
-    private String signature;
+    protected String signature;
 
-    BasicAmbassador() {
+    protected BasicFederate federate;
+
+    public List<Interaction> federationEvents;
+
+    BasicAmbassador(BasicFederate federate) {
         federateTime = 0.0;
         federateTimeStep = 1.0;
-        federateLookahead = 0.0;
+        federateLookahead = 1.0;
         isRegulating = false;
         isConstrained = false;
         isAdvancing = false;
@@ -37,22 +42,21 @@ public class BasicAmbassador extends NullFederateAmbassador {
         isReadyToRun = false;
         running = true;
         signature = "BasicAmbassador";
+        federationEvents = new ArrayList<>();
     }
 
-    private double convertTime( LogicalTime logicalTime )
-    {
-        return ((DoubleTime)logicalTime).getTime();
-    }
 
-    private void log( String message )
+
+    protected void log( String message )
     {
         System.out.println( signature + ": " + message );
     }
 
     @Override
-    public void synchronizationPointRegistrationFailed( String label )
+    public void synchronizationPointRegistrationFailed( String label,
+                                                        SynchronizationPointFailureReason reason )
     {
-        log( "Failed to register sync point: " + label );
+        log( "Failed to register sync point: " + label + ", reason="+reason );
     }
 
     @Override
@@ -70,7 +74,7 @@ public class BasicAmbassador extends NullFederateAmbassador {
     }
 
     @Override
-    public void federationSynchronized( String label )
+    public void federationSynchronized( String label, FederateHandleSet failed )
     {
         log( "Federation Synchronized: " + label );
         if( label.equals(BasicFederate.READY_TO_RUN) )
@@ -78,149 +82,158 @@ public class BasicAmbassador extends NullFederateAmbassador {
     }
 
     @Override
-    public void timeRegulationEnabled( LogicalTime theFederateTime )
+    public void timeRegulationEnabled( LogicalTime time )
     {
-        this.federateTime = convertTime( theFederateTime );
+        this.federateTime = ((HLAfloat64Time)time).getValue();
         this.isRegulating = true;
     }
 
     @Override
-    public void timeConstrainedEnabled( LogicalTime theFederateTime )
+    public void timeConstrainedEnabled( LogicalTime time )
     {
-        this.federateTime = convertTime( theFederateTime );
+        this.federateTime = ((HLAfloat64Time)time).getValue();
         this.isConstrained = true;
     }
 
     @Override
-    public void timeAdvanceGrant( LogicalTime theTime )
+    public void timeAdvanceGrant( LogicalTime time )
     {
-        this.federateTime = convertTime( theTime );
+        this.grantedTime = ((HLAfloat64Time)time).getValue();
         this.isAdvancing = false;
     }
 
     @Override
-    public void reflectAttributeValues( int theObject,
-                                        ReflectedAttributes theAttributes,
-                                        byte[] tag )
+    public void discoverObjectInstance( ObjectInstanceHandle theObject,
+                                        ObjectClassHandle theObjectClass,
+                                        String objectName )
     {
-        // just pass it on to the other method for printing purposes
-        // passing null as the time will let the other method know it
-        // it from us, not from the RTI
-        reflectAttributeValues( theObject, theAttributes, tag, null, null );
+        log( "Discoverd Object: handle=" + theObject + ", classHandle=" +
+                theObjectClass + ", name=" + objectName );
     }
 
     @Override
-    public void reflectAttributeValues( int theObject,
-                                        ReflectedAttributes theAttributes,
+    public void reflectAttributeValues( ObjectInstanceHandle theObject,
+                                        AttributeHandleValueMap theAttributes,
                                         byte[] tag,
-                                        LogicalTime theTime,
-                                        EventRetractionHandle retractionHandle )
+                                        OrderType sentOrder,
+                                        TransportationTypeHandle transport,
+                                        FederateAmbassador.SupplementalReflectInfo reflectInfo )
+    {
+        reflectAttributeValues( theObject,
+                theAttributes,
+                tag,
+                sentOrder,
+                transport,
+                null,
+                sentOrder,
+                reflectInfo );
+    }
+
+    @Override
+    public void reflectAttributeValues( ObjectInstanceHandle theObject,
+                                        AttributeHandleValueMap theAttributes,
+                                        byte[] tag,
+                                        OrderType sentOrdering,
+                                        TransportationTypeHandle theTransport,
+                                        LogicalTime time,
+                                        OrderType receivedOrdering,
+                                        FederateAmbassador.SupplementalReflectInfo reflectInfo )
     {
         StringBuilder builder = new StringBuilder( "Reflection for object:" );
 
         // print the handle
         builder.append( " handle=" + theObject );
         // print the tag
-        builder.append( ", tag=" + EncodingHelpers.decodeString(tag) );
+        builder.append( ", tag=" + new String(tag) );
         // print the time (if we have it) we'll get null if we are just receiving
         // a forwarded call from the other reflect callback above
-        if( theTime != null )
+        if( time != null )
         {
-            builder.append( ", time=" + convertTime(theTime) );
+            builder.append( ", time=" + ((HLAfloat64Time)time).getValue() );
         }
 
         // print the attribute information
         builder.append( ", attributeCount=" + theAttributes.size() );
         builder.append( "\n" );
-        for( int i = 0; i < theAttributes.size(); i++ )
+        for( AttributeHandle attributeHandle : theAttributes.keySet() )
         {
-            try
-            {
-                // print the attibute handle
-                builder.append( "\tattributeHandle=" );
-                builder.append( theAttributes.getAttributeHandle(i) );
-                // print the attribute value
-                builder.append( ", attributeValue=" );
-                builder.append(
-                        EncodingHelpers.decodeString(theAttributes.getValue(i)) );
-                builder.append( "\n" );
-            }
-            catch( ArrayIndexOutOfBounds aioob )
-            {
-                // won't happen
-            }
+            // print the attibute handle
+            builder.append( "\tattributeHandle=" );
+
+            // if we're dealing with Flavor, decode into the appropriate enum value
+
+
+            builder.append( "\n" );
         }
 
         log( builder.toString() );
     }
 
     @Override
-    public void receiveInteraction( int interactionClass,
-                                    ReceivedInteraction theInteraction,
-                                    byte[] tag )
+    public void receiveInteraction( InteractionClassHandle interactionClass,
+                                    ParameterHandleValueMap theParameters,
+                                    byte[] tag,
+                                    OrderType sentOrdering,
+                                    TransportationTypeHandle theTransport,
+                                    FederateAmbassador.SupplementalReceiveInfo receiveInfo )
     {
-        // just pass it on to the other method for printing purposes
-        // passing null as the time will let the other method know it
-        // it from us, not from the RTI
-        receiveInteraction( interactionClass, theInteraction, tag, null, null );
+        this.receiveInteraction( interactionClass,
+                theParameters,
+                tag,
+                sentOrdering,
+                theTransport,
+                null,
+                sentOrdering,
+                receiveInfo );
     }
 
     @Override
-    public void receiveInteraction( int interactionClass,
-                                    ReceivedInteraction theInteraction,
+    public void receiveInteraction( InteractionClassHandle interactionClass,
+                                    ParameterHandleValueMap theParameters,
                                     byte[] tag,
-                                    LogicalTime theTime,
-                                    EventRetractionHandle eventRetractionHandle )
+                                    OrderType sentOrdering,
+                                    TransportationTypeHandle theTransport,
+                                    hla.rti1516e.LogicalTime time,
+                                    OrderType receivedOrdering,
+                                    FederateAmbassador.SupplementalReceiveInfo receiveInfo )
     {
         StringBuilder builder = new StringBuilder( "Interaction Received:" );
 
         // print the handle
         builder.append( " handle=" + interactionClass );
+
         // print the tag
-        builder.append( ", tag=" + EncodingHelpers.decodeString(tag) );
+        builder.append( ", tag=" + new String(tag) );
         // print the time (if we have it) we'll get null if we are just receiving
         // a forwarded call from the other reflect callback above
-        if( theTime != null )
+        if( time != null )
         {
-            builder.append( ", time=" + convertTime(theTime) );
+            builder.append( ", time=" + ((HLAfloat64Time)time).getValue() );
         }
 
         // print the parameer information
-        builder.append( ", parameterCount=" + theInteraction.size() );
+        builder.append( ", parameterCount=" + theParameters.size() );
         builder.append( "\n" );
-        for( int i = 0; i < theInteraction.size(); i++ )
+        for( ParameterHandle parameter : theParameters.keySet() )
         {
-            try
-            {
-                // print the parameter handle
-                builder.append( "\tparamHandle=" );
-                builder.append( theInteraction.getParameterHandle(i) );
-                // print the parameter value
-                builder.append( ", paramValue=" );
-                builder.append(
-                        EncodingHelpers.decodeString(theInteraction.getValue(i)) );
-                builder.append( "\n" );
-            }
-            catch( ArrayIndexOutOfBounds aioob )
-            {
-                // won't happen
-            }
+            // print the parameter handle
+            builder.append( "\tparamHandle=" );
+            builder.append( parameter );
+            // print the parameter value
+            builder.append( ", paramValue=" );
+            builder.append( theParameters.get(parameter).length );
+            builder.append( " bytes" );
+            builder.append( "\n" );
         }
 
         log( builder.toString() );
     }
 
     @Override
-    public void removeObjectInstance( int theObject, byte[] userSuppliedTag )
-    {
-        log( "Object Removed: handle=" + theObject );
-    }
-
-    @Override
-    public void removeObjectInstance( int theObject,
-                                      byte[] userSuppliedTag,
-                                      LogicalTime theTime,
-                                      EventRetractionHandle retractionHandle )
+    public void removeObjectInstance( ObjectInstanceHandle theObject,
+                                      byte[] tag,
+                                      OrderType sentOrdering,
+                                      FederateAmbassador.SupplementalRemoveInfo removeInfo )
     {
         log( "Object Removed: handle=" + theObject );
     }
@@ -261,7 +274,15 @@ public class BasicAmbassador extends NullFederateAmbassador {
         return running;
     }
 
+    public double getGrantedTime() {
+        return grantedTime;
+    }
+
     public void setAdvancing(boolean advancing) {
         isAdvancing = advancing;
+    }
+
+    public void setFederateTime(double federateTime) {
+        this.federateTime = federateTime;
     }
 }

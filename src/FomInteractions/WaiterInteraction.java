@@ -1,11 +1,13 @@
 package FomInteractions;
 
+import hla.rti1516e.LogicalTime;
+
 public class WaiterInteraction extends ClientInteraction {
 
     private int waiterNumber;
 
-    public WaiterInteraction(int clientNumber, int waiterNumber) {
-        super(clientNumber);
+    public WaiterInteraction(InteractionType type, LogicalTime time, int clientNumber, int waiterNumber) {
+        super(type, time, clientNumber);
         this.waiterNumber = waiterNumber;
     }
 
