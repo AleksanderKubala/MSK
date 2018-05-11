@@ -1,9 +1,9 @@
 package Federates;
 
 import Ambassadors.TableAmbassador;
-import FomInteractions.Interaction;
-import FomInteractions.InteractionComparator;
-import FomInteractions.TableInteraction;
+import FomInteractions.Events.TimedEvent;
+import FomInteractions.Events.TimedEventComparator;
+import FomInteractions.Interactions.TableInteraction;
 import FomObjects.Table;
 import hla.rti1516e.*;
 import hla.rti1516e.encoding.HLAinteger32BE;
@@ -26,8 +26,8 @@ public class TableFederate extends BasicFederate {
     private int maximumSeats;
 
     private ObjectClassHandle tableClassHandle;
-    private AttributeHandle tableNumberHandle;
-    private AttributeHandle freeSeatsNowHandle;
+    private AttributeHandle tableNumberAttrHandle;
+    private AttributeHandle freeSeatsNowAttrHandle;
 
     TableFederate(int tableInstancesCount, int minimumSeats, int maximumSeats) {
         super();
@@ -42,12 +42,12 @@ public class TableFederate extends BasicFederate {
     protected void publishAndSubscribe() throws RTIexception {
 
         tableClassHandle = rtiAmbassador.getObjectClassHandle("ObjectRoot.Table");
-        tableNumberHandle = rtiAmbassador.getAttributeHandle(tableClassHandle, "tableNumber");
-        freeSeatsNowHandle = rtiAmbassador.getAttributeHandle(tableClassHandle, "freeSeatsNow");
+        tableNumberAttrHandle = rtiAmbassador.getAttributeHandle(tableClassHandle, "tableNumber");
+        freeSeatsNowAttrHandle = rtiAmbassador.getAttributeHandle(tableClassHandle, "freeSeatsNow");
 
         AttributeHandleSet tableAttributeHandleSet = rtiAmbassador.getAttributeHandleSetFactory().create();
-        tableAttributeHandleSet.add(tableNumberHandle);
-        tableAttributeHandleSet.add(freeSeatsNowHandle);
+        tableAttributeHandleSet.add(tableNumberAttrHandle);
+        tableAttributeHandleSet.add(freeSeatsNowAttrHandle);
 
         rtiAmbassador.publishObjectClassAttributes(tableClassHandle, tableAttributeHandleSet);
 
@@ -56,9 +56,9 @@ public class TableFederate extends BasicFederate {
 
         ParameterHandle tableNumberHandle = rtiAmbassador.getParameterHandle(seatTakenIHandle, "tableNumber");
 
-        ((TableAmbassador)federateAmbassador).seatTakenIHandle = seatTakenIHandle;
-        ((TableAmbassador)federateAmbassador).seatFreedIHandle = seatFreedIHandle;
-        ((TableAmbassador)federateAmbassador).tableNumberHandle = tableNumberHandle;
+        ((TableAmbassador)federateAmbassador).seatTakenHandle = seatTakenIHandle;
+        ((TableAmbassador)federateAmbassador).seatFreedHandle = seatFreedIHandle;
+        ((TableAmbassador)federateAmbassador).tableNumberParamHandle = tableNumberHandle;
 
         rtiAmbassador.subscribeInteractionClass(seatTakenIHandle);
         rtiAmbassador.subscribeInteractionClass(seatFreedIHandle);
@@ -79,6 +79,7 @@ public class TableFederate extends BasicFederate {
         timeFactory = (HLAfloat64TimeFactory) rtiAmbassador.getTimeFactory();
 
         registerSynchronizationPoint();
+        waitForUser(" >>>>>>>>>> Press Enter to Continue <<<<<<<<<<");
         awaitFederationSynchronization();
 
         setTimePolicy(true, true);
@@ -91,16 +92,16 @@ public class TableFederate extends BasicFederate {
             advanceTime(newTime);
 
             if(federateAmbassador.federationEvents.size() > 0) {
-                federateAmbassador.federationEvents.sort(new InteractionComparator());
-                for(Interaction interaction: federateAmbassador.federationEvents) {
-                    double time = ((HLAfloat64Time)(interaction.getTime())).getValue();
+                federateAmbassador.federationEvents.sort(new TimedEventComparator());
+                for(TimedEvent event: federateAmbassador.federationEvents) {
+                    double time = ((HLAfloat64Time)(event.getTime())).getValue();
                     federateAmbassador.setFederateTime(time);
-                    switch(interaction.getType()) {
+                    switch(event.getType()) {
                         case SEAT_FREED:
-                            seatFreed(time, ((TableInteraction)interaction).getTableNumber());
+                            seatFreed(time + federateAmbassador.getFederateLookahead(), ((TableInteraction)event).getTableNumber());
                             break;
                         case SEAT_TAKEN:
-                            seatTaken(time, ((TableInteraction)interaction).getTableNumber());
+                            seatTaken(time + federateAmbassador.getFederateLookahead(), ((TableInteraction)event).getTableNumber());
                             break;
                     }
                 }
@@ -108,7 +109,7 @@ public class TableFederate extends BasicFederate {
             }
 
             if(federateAmbassador.getGrantedTime() == newTime) {
-                newTime += federateAmbassador.getFederateLookahead();
+                //newTime += federateAmbassador.getFederateLookahead();
                 federateAmbassador.setFederateTime(newTime);
             }
 
@@ -143,8 +144,8 @@ public class TableFederate extends BasicFederate {
             HLAinteger32BE tableNumberValue = encoderFactory.createHLAinteger32BE(tableInstanceMap.get(i).getTableNumber());
             HLAinteger32BE freeSeatsNowValue = encoderFactory.createHLAinteger32BE(tableInstanceMap.get(i).getFreeSeatsNow());
 
-            attributes.put(tableNumberHandle, tableNumberValue.toByteArray());
-            attributes.put(freeSeatsNowHandle, freeSeatsNowValue.toByteArray());
+            attributes.put(tableNumberAttrHandle, tableNumberValue.toByteArray());
+            attributes.put(freeSeatsNowAttrHandle, freeSeatsNowValue.toByteArray());
             LogicalTime logicalTime = convertTime(time);
             rtiAmbassador.updateAttributeValues(tableInstanceMap.get(i).getInstanceHandle(), attributes, "setting tables parameters".getBytes(), logicalTime);
             log("Updated Table Instance (time: " + time + ")");
@@ -154,20 +155,26 @@ public class TableFederate extends BasicFederate {
 
     private void seatTaken(double time, int tableNumber) throws RTIexception {
         Table table = tableInstanceMap.get(tableNumber);
-        freeSeatNumberChanged(time, table.getInstanceHandle(), table.getFreeSeatsNow() - 1);
+        table.setFreeSeatsNow(table.getFreeSeatsNow() - 1);
+        freeSeatNumberChanged(time, table.getInstanceHandle(), tableNumber, table.getFreeSeatsNow());
+        log("(time: " + time + "): Table " + tableNumber + ": freeSeatsNow: " + (table.getFreeSeatsNow()));
     }
 
     private void seatFreed(double time, int tableNumber) throws RTIexception {
         Table table = tableInstanceMap.get(tableNumber);
-        freeSeatNumberChanged(time, table.getInstanceHandle(), table.getFreeSeatsNow() + 1);
+        table.setFreeSeatsNow(table.getFreeSeatsNow() + 1);
+        freeSeatNumberChanged(time, table.getInstanceHandle(), tableNumber, table.getFreeSeatsNow());
+        log("(time: " + time + "): Table " + tableNumber + ": freeSeatsNow: " + (table.getFreeSeatsNow()));
     }
 
-    private void freeSeatNumberChanged(double time, ObjectInstanceHandle instanceHandle, int freeSeats) throws RTIexception {
+    private void freeSeatNumberChanged(double time, ObjectInstanceHandle instanceHandle, int tableNumber, int freeSeats) throws RTIexception {
         AttributeHandleValueMap attributes = rtiAmbassador.getAttributeHandleValueMapFactory().create(1);
 
         HLAinteger32BE freeSeatsNowValue = encoderFactory.createHLAinteger32BE(freeSeats);
+        HLAinteger32BE tableNumberValue = encoderFactory.createHLAinteger32BE(tableNumber);
 
-        attributes.put(freeSeatsNowHandle, freeSeatsNowValue.toByteArray());
+        attributes.put(tableNumberAttrHandle, tableNumberValue.toByteArray());
+        attributes.put(freeSeatsNowAttrHandle, freeSeatsNowValue.toByteArray());
         LogicalTime logicalTime = convertTime(time);
         rtiAmbassador.updateAttributeValues(instanceHandle, attributes, "updating tables seats".getBytes(), logicalTime);
     }

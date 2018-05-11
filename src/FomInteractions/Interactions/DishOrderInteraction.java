@@ -1,13 +1,14 @@
-package FomInteractions;
+package FomInteractions.Interactions;
 
+import FomInteractions.Events.EventType;
 import hla.rti1516e.LogicalTime;
 
 public class DishOrderInteraction extends ClientInteraction{
 
     private int dishNumber;
 
-    public DishOrderInteraction(InteractionType type, LogicalTime time, int clientNumber, int dishNumber) {
-        super(type, time, clientNumber);
+    public DishOrderInteraction(LogicalTime time, EventType type, int clientNumber, int dishNumber) {
+        super(time, type, clientNumber);
         this.dishNumber = dishNumber;
     }
 

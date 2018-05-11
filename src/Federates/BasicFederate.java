@@ -9,7 +9,9 @@ import hla.rti1516e.exceptions.FederationExecutionDoesNotExist;
 import hla.rti1516e.exceptions.RTIexception;
 import hla.rti1516e.time.HLAfloat64TimeFactory;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 
 public abstract class BasicFederate {
@@ -45,7 +47,7 @@ public abstract class BasicFederate {
         return timeFactory.makeInterval( time );
     }
 
-    protected boolean createFederation() throws RTIexception{
+    protected synchronized boolean createFederation() throws RTIexception{
         try
         {
             File fom = new File( "fom.fed" );
@@ -156,9 +158,30 @@ public abstract class BasicFederate {
         return (short)federateAmbassador.getFederateTime();
     }
 
-    private byte[] generateTag()
+    protected byte[] generateTag()
     {
         return ("(timestamp) "+System.currentTimeMillis()).getBytes();
+    }
+
+    protected String waitForUser(String message)
+    {
+        log( message );
+        BufferedReader reader = new BufferedReader( new InputStreamReader(System.in) );
+        try
+        {
+            return reader.readLine();
+        }
+        catch( Exception e )
+        {
+            log( "Error while waiting for user input: " + e.getMessage() );
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public ObjectClassHandle retrieveClassHandle(ObjectInstanceHandle handle) throws RTIexception {
+        ObjectClassHandle classHandle = rtiAmbassador.getKnownObjectClassHandle(handle);
+        return classHandle;
     }
 
 }

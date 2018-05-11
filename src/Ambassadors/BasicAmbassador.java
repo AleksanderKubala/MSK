@@ -1,13 +1,15 @@
 package Ambassadors;
 
 import Federates.BasicFederate;
-import FomInteractions.Interaction;
+import FomInteractions.Events.TimedEvent;
 import hla.rti1516e.*;
 import hla.rti1516e.FederateAmbassador;
 import hla.rti1516e.time.HLAfloat64Time;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class BasicAmbassador extends NullFederateAmbassador {
 
@@ -29,7 +31,8 @@ public class BasicAmbassador extends NullFederateAmbassador {
 
     protected BasicFederate federate;
 
-    public List<Interaction> federationEvents;
+    public List<TimedEvent> federationEvents;
+    protected Map<ObjectInstanceHandle, ObjectClassHandle> instanceClassMap;
 
     BasicAmbassador(BasicFederate federate) {
         federateTime = 0.0;
@@ -43,6 +46,7 @@ public class BasicAmbassador extends NullFederateAmbassador {
         running = true;
         signature = "BasicAmbassador";
         federationEvents = new ArrayList<>();
+        instanceClassMap = new HashMap<>();
     }
 
 

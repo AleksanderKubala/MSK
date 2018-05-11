@@ -1,18 +1,18 @@
 package Ambassadors;
 
 import Federates.BasicFederate;
-import FomInteractions.InteractionType;
-import FomInteractions.TableInteraction;
+import FomInteractions.Events.EventType;
+import FomInteractions.Interactions.TableInteraction;
 import hla.rti1516e.*;
 import hla.rti1516e.encoding.ByteWrapper;
 
 
 public class TableAmbassador extends BasicAmbassador {
 
-    public InteractionClassHandle seatTakenIHandle;
-    public InteractionClassHandle seatFreedIHandle;
+    public InteractionClassHandle seatTakenHandle;
+    public InteractionClassHandle seatFreedHandle;
 
-    public ParameterHandle tableNumberHandle;
+    public ParameterHandle tableNumberParamHandle;
 
     public TableAmbassador(BasicFederate federate) {
         super(federate);
@@ -30,24 +30,26 @@ public class TableAmbassador extends BasicAmbassador {
                                    SupplementalReceiveInfo receiveInfo) {
 
         StringBuilder builder = new StringBuilder("Interaction received (time: " + time.toString() + "): ");
-        if(interactionClass.equals(seatFreedIHandle)) {
+        if(interactionClass.equals(seatFreedHandle)) {
             builder.append("Seat freed, ");
             int tableNumber = retrieveTableNumber(theParameters);
             builder.append("Table number: " + tableNumber);
-            TableInteraction interaction = new TableInteraction(InteractionType.SEAT_FREED, time, tableNumber);
+            TableInteraction interaction = new TableInteraction(time, EventType.SEAT_FREED, tableNumber);
             federationEvents.add(interaction);
         }
-        if (interactionClass.equals(seatFreedIHandle)) {
+        if (interactionClass.equals(seatTakenHandle)) {
             builder.append("Seat taken, ");
             int tableNumber = retrieveTableNumber(theParameters);
             builder.append("Table number: " + tableNumber);
-            TableInteraction interaction = new TableInteraction(InteractionType.SEAT_TAKEN, time, tableNumber);
+            TableInteraction interaction = new TableInteraction(time, EventType.SEAT_TAKEN, tableNumber);
             federationEvents.add(interaction);
         }
+
+        log(builder.toString());
     }
 
     private int retrieveTableNumber(ParameterHandleValueMap parameters) {
-        ByteWrapper wrapper = parameters.getValueReference(tableNumberHandle);
+        ByteWrapper wrapper = parameters.getValueReference(tableNumberParamHandle);
         return wrapper.getInt();
     }
 }
