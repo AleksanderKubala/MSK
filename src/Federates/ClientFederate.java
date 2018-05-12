@@ -6,6 +6,7 @@ import FomInteractions.Events.*;
 import FomInteractions.Interactions.ClientInteraction;
 import FomObjects.Dish;
 import FomObjects.Table;
+import FomObjects.TableComparator;
 import hla.rti1516e.*;
 import hla.rti1516e.encoding.HLAinteger32BE;
 import hla.rti1516e.exceptions.RTIexception;
@@ -233,38 +234,24 @@ public class ClientFederate extends BasicFederate {
             double timeToAdvance = getNextTime();
             double nextInternalEventTime = 0.0;
 
+            if(!clientsQueue.isEmpty()) {
+                if (!tableInstanceMap.isEmpty()) {
+                    Collection<Client> clients = clientsQueue.values();
+                    for(Client client: clients) {
+                        seatClient(client, timeToAdvance);
+                    }
+                }
+            }
+
             if(internalEvents.size() > 0) {
                 internalEvents.sort(new TimedEventComparator());
                 timeToAdvance =  ((HLAfloat64Time) internalEvents.get(0).getTime()).getValue();
-                log("Time to advance: " + timeToAdvance);
                 nextInternalEventTime = timeToAdvance;
                 internalEventsPending = true;
                 advanceTime(timeToAdvance);
                 retrieveCurrentInternalEvents(timeToAdvance);
             }
 
-            if (federateAmbassador.getGrantedTime() == timeToAdvance) {
-                federateAmbassador.setFederateTime(timeToAdvance);
-                if(internalEventsPending) {
-                    if (federateAmbassador.getFederateTime() >= nextInternalEventTime) {
-                        for(FederationTimedEvent event: currentInternalEvents) {
-                            processNextInternalEvent(event);
-                        }
-                        currentInternalEvents.clear();
-                    }
-                }
-            }
-
-            /*
-            generateClient(newTime);
-            if(!tableInstanceMap.isEmpty()) {
-                for(Client client: clientsQueue) {
-                    seatClient(client, newTime);
-                }
-            }
-            advanceTime(newTime);
-
-            //TODO przerobić komunikację między Client i Table, aby aktualizacja obiektów nie była regulowana czasem
             if(federateAmbassador.federationNonTimedEvents.size() > 0) {
                 for(FederationEvent event: federateAmbassador.federationNonTimedEvents) {
                     processFederationNonTimedEvent(event);
@@ -282,14 +269,18 @@ public class ClientFederate extends BasicFederate {
                 federateAmbassador.federationTimedEvents.clear();
             }
 
-
-            if(federateAmbassador.getGrantedTime() == newTime) {
-                //newTime += federateAmbassador.getFederateLookahead();
-                federateAmbassador.setFederateTime(newTime);
+            if (federateAmbassador.getGrantedTime() == timeToAdvance) {
+                federateAmbassador.setFederateTime(timeToAdvance);
+                log("Time advanced to: " + timeToAdvance);
+                if(internalEventsPending) {
+                    if (federateAmbassador.getFederateTime() >= nextInternalEventTime) {
+                        for(FederationTimedEvent event: currentInternalEvents) {
+                            processNextInternalEvent(event);
+                        }
+                        currentInternalEvents.clear();
+                    }
+                }
             }
-
-            rtiAmbassador.evokeMultipleCallbacks(0.1, 0.2);
-            */
         }
     }
 
@@ -318,19 +309,23 @@ public class ClientFederate extends BasicFederate {
 
     private void seatClient(Client client, double time) throws RTIexception {
 
+        boolean found = false;
         Collection<Table> tables = tableInstanceMap.values();
-        for(Table table: tables) {
+        Iterator<Table> iterator = tables.iterator();
+        while((iterator.hasNext()) && (!found)) {
+            Table table = iterator.next();
             if(table.getFreeSeatsNow() > 0) {
+                found = true;
                 internalEvents.remove(client.getClientImpatient());
                 clientsInside.put(client.getClientNumber(), client);
-                clientsQueue.remove(client);
-                sendTableInteraction(federateAmbassador.getFederateTime(), table.getTableNumber(), EventType.SEAT_TAKEN);
+                clientsQueue.remove(client.getClientNumber());
+                sendTableInteraction(getNextTime(), client.getClientNumber(), table.getTableNumber(), EventType.SEAT_TAKEN);
             }
         }
     }
 
 
-    private void sendTableInteraction(double time, int tableNumber, EventType type) throws RTIexception {
+    private void sendTableInteraction(double time, int clientNumber, int tableNumber, EventType type) throws RTIexception {
         ParameterHandleValueMap params = rtiAmbassador.getParameterHandleValueMapFactory().create(1);
         HLAinteger32BE tableNumberValue = encoderFactory.createHLAinteger32BE(tableNumber);
         params.put(tableNumberParamHandle, tableNumberValue.toByteArray());
@@ -338,11 +333,11 @@ public class ClientFederate extends BasicFederate {
         HLAfloat64Time timeValue = timeFactory.makeTime( time);
         switch(type) {
             case SEAT_TAKEN:
-                log("(time: " + time + "): Client taken place at Table " + tableNumber);
+                log("(time: " + time + "): Client " + clientNumber + " taken place at Table " + tableNumber);
                 rtiAmbassador.sendInteraction( seatTakenHandle, params, generateTag(), timeValue );
                 break;
             case SEAT_FREED:
-                log("(time: " + time + "): Client freed place at Table " + tableNumber);
+                log("(time: " + time + "): Client " + clientNumber + " freed place at Table " + tableNumber);
                 rtiAmbassador.sendInteraction( seatFreedHandle, params, generateTag(), timeValue );
                 break;
         }
