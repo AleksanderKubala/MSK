@@ -33,6 +33,7 @@
       )
       (class ClientInteraction reliable timestamp
         (parameter clientNumber)
+        (class ClientArrived reliable timestamp)
         (class ClientLeftQueue reliable timestamp)
         (class ClientWaiting reliable timestamp)
         (class ClientServiced reliable timestamp

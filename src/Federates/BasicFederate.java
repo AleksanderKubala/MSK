@@ -1,6 +1,7 @@
 package Federates;
 
 import Ambassadors.BasicAmbassador;
+import Ambassadors.ClientAmbassador;
 import FomInteractions.Events.FederationEvent;
 import FomInteractions.Events.FederationTimedEvent;
 import FomInteractions.Events.TimedEventComparator;
@@ -30,12 +31,14 @@ public abstract class BasicFederate {
     public EncoderFactory encoderFactory;
 
     protected List<FederationTimedEvent> internalEvents;
+    protected List<FederationTimedEvent> currentInternalEvents;
 
     protected String signature;
 
     protected BasicFederate(String federateName) {
         signature = federateName;
         internalEvents = new ArrayList<>();
+        currentInternalEvents = new ArrayList<>();
     }
 
     protected abstract void publishAndSubscribe() throws RTIexception;
@@ -44,6 +47,31 @@ public abstract class BasicFederate {
     protected abstract void processFederationTimedEvent(FederationTimedEvent event) throws RTIexception;
     protected abstract void processNextInternalEvent(FederationTimedEvent event) throws RTIexception;
     protected abstract void afterSynchronization() throws RTIexception;
+
+    protected void synchronizeWithFederation() throws RTIexception {
+        rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
+        rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
+        encoderFactory = RtiFactoryFactory.getRtiFactory().getEncoderFactory();
+        setFederateAmbassador();
+
+        rtiAmbassador.connect(federateAmbassador, CallbackModel.HLA_EVOKED);
+        createFederation();
+
+        joinFederation(signature);
+
+        timeFactory = (HLAfloat64TimeFactory) rtiAmbassador.getTimeFactory();
+
+        registerSynchronizationPoint();
+        waitForUser(" >>>>>>>>>> Press Enter to Continue <<<<<<<<<<");
+        awaitFederationSynchronization();
+
+
+    }
+
+    protected void configurateFederate(boolean timeConstrained, boolean timeRegulating) throws RTIexception {
+        setTimePolicy(timeConstrained, timeRegulating);
+        publishAndSubscribe();
+    }
 
     /*
     protected void runFederate(boolean timeConstrained, boolean timeRegulating) throws RTIexception {
@@ -246,7 +274,9 @@ public abstract class BasicFederate {
         }
     }
 
-
+    protected double getNextTime() {
+        return federateAmbassador.getFederateTime() + federateAmbassador.getFederateLookahead();
+    }
 
     protected void nextEventRequest( double time ) throws RTIexception {
         federateAmbassador.setAdvancing(true);

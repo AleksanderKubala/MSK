@@ -1,7 +1,9 @@
 package Federates;
 
 import Ambassadors.ClientAmbassador;
+import Federates.FederatesInternal.Client;
 import FomInteractions.Events.*;
+import FomInteractions.Interactions.ClientInteraction;
 import FomObjects.Dish;
 import FomObjects.Table;
 import hla.rti1516e.*;
@@ -10,16 +12,14 @@ import hla.rti1516e.exceptions.RTIexception;
 import hla.rti1516e.time.HLAfloat64Time;
 import hla.rti1516e.time.HLAfloat64TimeFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ClientFederate extends BasicFederate {
 
     private Map<Integer, Table> tableInstanceMap;
     private Map<Integer, Dish> dishInstanceMap;
-    private List<Integer> clients;
+    private Map<Integer, Client> clientsQueue;
+    private Map<Integer, Client> clientsInside;
 
     public InteractionClassHandle clientLeftQueueHandle;
     public InteractionClassHandle clientWaitingHandle;
@@ -32,11 +32,31 @@ public class ClientFederate extends BasicFederate {
     public InteractionClassHandle seatFreedHandle;
     public ParameterHandle tableNumberParamHandle;
 
-    public ClientFederate(String federateName) {
+    private double impatienceProbability;
+    private int impatienceMinTime;
+    private int impatienceMaxTime;
+    private int generationMinTime;
+    private int generationMaxTime;
+
+    private int globalClientId;
+
+    public ClientFederate(String federateName,
+                          double impatienceProbability,
+                          int impatienceAverageTime,
+                          int impatienceDeviation,
+                          int clientGenerationAverageTime,
+                          int clientGenerationDeviation) {
         super(federateName);
         tableInstanceMap = new HashMap<>();
         dishInstanceMap = new HashMap<>();
-        clients = new ArrayList<>();
+        clientsQueue = new HashMap<>();
+        clientsInside = new HashMap<>();
+        this.impatienceProbability = impatienceProbability;
+        this.impatienceMinTime = impatienceAverageTime - impatienceDeviation;
+        this.impatienceMaxTime = impatienceAverageTime + impatienceDeviation;
+        this.generationMaxTime = clientGenerationAverageTime + clientGenerationDeviation;
+        this.generationMinTime = clientGenerationAverageTime - clientGenerationDeviation;
+        globalClientId = 0;
     }
 
     @Override
@@ -134,12 +154,25 @@ public class ClientFederate extends BasicFederate {
 
     @Override
     protected void processNextInternalEvent(FederationTimedEvent event) throws RTIexception {
-        userInput();
+        switch(event.getType()) {
+            case CLIENT_ARRIVED:
+                ClientInteraction clientArrived = (ClientInteraction)event;
+                clientsQueue.put(
+                        clientArrived.getClientNumber(),
+                        generateClient(convertLogicalTime(event.getTime()), clientArrived.getClientNumber()));
+                //sendClientInteraction(getNextTime(), client.getClientNumber(), EventType.CLIENT_ARRIVED);
+                generateClientArrivedEvent();
+                break;
+            case CLIENT_LEFT_QUEUE:
+                ClientInteraction clientLeftQueue = (ClientInteraction)event;
+                clientLeftQueue(convertLogicalTime(event.getTime()), clientLeftQueue.getClientNumber());
+                break;
+        }
     }
 
     @Override
     protected void afterSynchronization() throws RTIexception {
-
+        generateClientArrivedEvent();
     }
 
     /*
@@ -149,23 +182,9 @@ public class ClientFederate extends BasicFederate {
         userInput();
     }*/
 
-
+    /*
     protected void runFederate(boolean timeConstrained, boolean timeRegulating) throws RTIexception {
-        rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
-        rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
-        encoderFactory = RtiFactoryFactory.getRtiFactory().getEncoderFactory();
-        federateAmbassador = new ClientAmbassador(this);
-
-        rtiAmbassador.connect(federateAmbassador, CallbackModel.HLA_EVOKED);
-        createFederation();
-
-        joinFederation(signature);
-
-        timeFactory = (HLAfloat64TimeFactory) rtiAmbassador.getTimeFactory();
-
-        registerSynchronizationPoint();
-        waitForUser(" >>>>>>>>>> Press Enter to Continue <<<<<<<<<<");
-        awaitFederationSynchronization();
+        synchronizeWithFederation();
 
         setTimePolicy(timeConstrained, timeRegulating);
         publishAndSubscribe();
@@ -178,18 +197,7 @@ public class ClientFederate extends BasicFederate {
             //TODO przerobić komunikację między Client i Table, aby aktualizacja obiektów nie była regulowana czasem
             if(federateAmbassador.federationNonTimedEvents.size() > 0) {
                 for(FederationEvent event: federateAmbassador.federationNonTimedEvents) {
-                    switch(event.getType()) {
-                        case OBJECT_UPDATE:
-                            UpdateSubscribedObjects update = (UpdateSubscribedObjects) event;
-                            switch (update.getObjectType()) {
-                                case TABLE:
-                                    updateTable(0.0, (Table) update.getObject());
-                                    break;
-                                case DISH:
-                                    updateDish(0.0, (Dish) update.getObject());
-                                    break;
-                            }
-                    }
+                    processFederationNonTimedEvent(event);
                 }
                 federateAmbassador.federationNonTimedEvents.clear();
             }
@@ -199,15 +207,7 @@ public class ClientFederate extends BasicFederate {
                 for(FederationTimedEvent event: federateAmbassador.federationTimedEvents) {
                     double time = ((HLAfloat64Time)(event.getTime())).getValue();
                     federateAmbassador.setFederateTime(time);
-                    switch(event.getType()) {
-                        case ORDER_FILLED:
-                            log("Done nothing with OrderFilled Interaction. Check runFederate()");
-                            break;
-                        case CLIENT_SERVICED:
-                            log("Done nothing with ClientServiced Interaction. Check runFederate()");
-                            break;
-
-                    }
+                    processFederationTimedEvent(event);
                 }
                 federateAmbassador.federationTimedEvents.clear();
             }
@@ -219,40 +219,116 @@ public class ClientFederate extends BasicFederate {
             }
 
             rtiAmbassador.evokeMultipleCallbacks(0.1, 0.2);
+        }
+    }
+    */
 
+    protected void runFederate(boolean timeConstrained, boolean timeRegulating) throws RTIexception {
+        synchronizeWithFederation();
+        configurateFederate(timeConstrained, timeRegulating);
+        afterSynchronization();
+
+        while(federateAmbassador.isRunning()) {
+            boolean internalEventsPending = false;
+            double timeToAdvance = getNextTime();
+            double nextInternalEventTime = 0.0;
+
+            if(internalEvents.size() > 0) {
+                internalEvents.sort(new TimedEventComparator());
+                timeToAdvance =  ((HLAfloat64Time) internalEvents.get(0).getTime()).getValue();
+                log("Time to advance: " + timeToAdvance);
+                nextInternalEventTime = timeToAdvance;
+                internalEventsPending = true;
+                advanceTime(timeToAdvance);
+                retrieveCurrentInternalEvents(timeToAdvance);
+            }
+
+            if (federateAmbassador.getGrantedTime() == timeToAdvance) {
+                federateAmbassador.setFederateTime(timeToAdvance);
+                if(internalEventsPending) {
+                    if (federateAmbassador.getFederateTime() >= nextInternalEventTime) {
+                        for(FederationTimedEvent event: currentInternalEvents) {
+                            processNextInternalEvent(event);
+                        }
+                        currentInternalEvents.clear();
+                    }
+                }
+            }
+
+            /*
+            generateClient(newTime);
             if(!tableInstanceMap.isEmpty()) {
-                userInput();
+                for(Client client: clientsQueue) {
+                    seatClient(client, newTime);
+                }
             }
-            else {
-                log("Awaiting for Table Instances...");
+            advanceTime(newTime);
+
+            //TODO przerobić komunikację między Client i Table, aby aktualizacja obiektów nie była regulowana czasem
+            if(federateAmbassador.federationNonTimedEvents.size() > 0) {
+                for(FederationEvent event: federateAmbassador.federationNonTimedEvents) {
+                    processFederationNonTimedEvent(event);
+                }
+                federateAmbassador.federationNonTimedEvents.clear();
             }
 
+            if(federateAmbassador.federationTimedEvents.size() > 0) {
+                federateAmbassador.federationTimedEvents.sort(new TimedEventComparator());
+                for(FederationTimedEvent event: federateAmbassador.federationTimedEvents) {
+                    double time = ((HLAfloat64Time)(event.getTime())).getValue();
+                    federateAmbassador.setFederateTime(time);
+                    processFederationTimedEvent(event);
+                }
+                federateAmbassador.federationTimedEvents.clear();
+            }
+
+
+            if(federateAmbassador.getGrantedTime() == newTime) {
+                //newTime += federateAmbassador.getFederateLookahead();
+                federateAmbassador.setFederateTime(newTime);
+            }
+
+            rtiAmbassador.evokeMultipleCallbacks(0.1, 0.2);
+            */
         }
     }
 
-
-    private void userInput() throws RTIexception {
-
-        double time = federateAmbassador.getFederateTime();
-        String number;
-        System.out.println("\nSelect action (time: " + time + "):");
-        System.out.println("(1) Take seat");
-        System.out.println("(2) Free seat");
-
-        String input = waitForUser("\t");
-        switch(input){
-            case "1":
-                System.out.print("TableNumber: ");
-                number = waitForUser("");
-                sendTableInteraction(time, Integer.parseInt(number), EventType.SEAT_TAKEN);
-                break;
-            case "2":
-                System.out.print("TableNumber: ");
-                number = waitForUser("");
-                sendTableInteraction(time, Integer.parseInt(number), EventType.SEAT_FREED);
-                break;
+    private Client generateClient(double time, int clientNumber) throws RTIexception {
+        boolean isImpatient = false;
+        Random random = new Random();
+        if(random.nextDouble() <= impatienceProbability) {
+            isImpatient = true;
+        }
+        if(isImpatient) {
+            int impatienceTime = impatienceMinTime + random.nextInt(impatienceMaxTime - impatienceMinTime) + 1;
+            LogicalTime impatienceEventTime = convertTime(federateAmbassador.getFederateTime() + (double)impatienceTime);
+            ClientInteraction clientLeftQueue = new ClientInteraction(
+                    impatienceEventTime,
+                    EventType.CLIENT_LEFT_QUEUE,
+                    clientNumber);
+            internalEvents.add(clientLeftQueue);
+            log("(time: " + time + "): " + "New impatient client " + clientNumber + " has arrived");
+            return new Client(clientNumber, clientLeftQueue);
+        }
+        else {
+            log("(time: " + time + "): " + "New client " + clientNumber + " has arrived");
+            return new Client(clientNumber, null);
         }
     }
+
+    private void seatClient(Client client, double time) throws RTIexception {
+
+        Collection<Table> tables = tableInstanceMap.values();
+        for(Table table: tables) {
+            if(table.getFreeSeatsNow() > 0) {
+                internalEvents.remove(client.getClientImpatient());
+                clientsInside.put(client.getClientNumber(), client);
+                clientsQueue.remove(client);
+                sendTableInteraction(federateAmbassador.getFederateTime(), table.getTableNumber(), EventType.SEAT_TAKEN);
+            }
+        }
+    }
+
 
     private void sendTableInteraction(double time, int tableNumber, EventType type) throws RTIexception {
         ParameterHandleValueMap params = rtiAmbassador.getParameterHandleValueMapFactory().create(1);
@@ -272,6 +348,10 @@ public class ClientFederate extends BasicFederate {
         }
     }
 
+    private void sendClientInteraction(double time, int clientNumber, EventType type) throws RTIexception {
+
+    }
+
     private void updateTable(double time, Table table) {
         Table cachedTable = tableInstanceMap.putIfAbsent(table.getTableNumber(), table);
         if(cachedTable != null)
@@ -283,9 +363,58 @@ public class ClientFederate extends BasicFederate {
         Dish cachedDish = dishInstanceMap.putIfAbsent(dish.getDishNumber(), dish);
     }
 
+    private void generateClientArrivedEvent() {
+        Random random = new Random();
+        double time = getNextTime();
+        double clientArrivalTime = getNextTime() + generationMinTime + random.nextInt(generationMaxTime - generationMinTime) + 1;
+        int clientNumber = globalClientId;
+        globalClientId++;
+        ClientInteraction clientArrival = new ClientInteraction(
+                convertTime(clientArrivalTime),
+                EventType.CLIENT_ARRIVED,
+                clientNumber);
+        internalEvents.add(clientArrival);
+    }
+
+    private void clientLeftQueue(double time, int clientNumber) {
+        log("(time: " + time + "): Client " + clientNumber + " got impatient and left the queue");
+        clientsQueue.remove(clientNumber);
+    }
+
+    private void retrieveCurrentInternalEvents(double time) {
+        boolean searching = true;
+        int eventCount = 0;
+        for(int i = 0; (i < internalEvents.size()) && searching; i++) {
+            FederationTimedEvent event = internalEvents.get(i);
+            double eventTime = convertLogicalTime(event.getTime());
+            if(eventTime == time) {
+                currentInternalEvents.add(event);
+                eventCount++;
+            } else {
+                searching = false;
+            }
+        }
+        for(int i = 0; i < eventCount; i++) {
+            internalEvents.remove(0);
+        }
+    }
+
     public static void main(String[] args) {
         try {
-            new ClientFederate("ClientFederate").runFederate(true, true);
+            String federateName = "ClientFederate";
+            double impatienceProbability = 0.5;
+            int impatienceAverageTime = 20;
+            int impatienceDeviation = 5;
+            int clientGenerationAverageTime = 8;
+            int clientGenerationDeviation = 4;
+
+            new ClientFederate(federateName,
+                    impatienceProbability,
+                    impatienceAverageTime,
+                    impatienceDeviation,
+                    clientGenerationAverageTime,
+                    clientGenerationDeviation).runFederate(true, true);
+
         } catch (RTIexception rtIexception) {
             rtIexception.printStackTrace();
         }
