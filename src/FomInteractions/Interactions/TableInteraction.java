@@ -1,15 +1,15 @@
 package FomInteractions.Interactions;
 
 import FomInteractions.Events.EventType;
-import FomInteractions.Events.TimedEvent;
+import FomInteractions.Events.FederationTimedEvent;
 import hla.rti1516e.LogicalTime;
 
-public class TableInteraction extends TimedEvent {
+public class TableInteraction extends ClientInteraction {
 
     private int tableNumber;
 
-    public TableInteraction(LogicalTime time, EventType type, int tableNumber) {
-        super(time, type);
+    public TableInteraction(LogicalTime time, EventType type, int clientNumber, int tableNumber) {
+        super(time, type, clientNumber);
         this.tableNumber = tableNumber;
     }
 

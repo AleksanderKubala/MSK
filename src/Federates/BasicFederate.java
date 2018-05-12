@@ -1,18 +1,25 @@
 package Federates;
 
 import Ambassadors.BasicAmbassador;
+import Ambassadors.ClientAmbassador;
+import FomInteractions.Events.FederationEvent;
+import FomInteractions.Events.FederationTimedEvent;
+import FomInteractions.Events.TimedEventComparator;
 import hla.rti1516e.*;
 import hla.rti1516e.encoding.EncoderFactory;
 import hla.rti1516e.exceptions.FederatesCurrentlyJoined;
 import hla.rti1516e.exceptions.FederationExecutionAlreadyExists;
 import hla.rti1516e.exceptions.FederationExecutionDoesNotExist;
 import hla.rti1516e.exceptions.RTIexception;
+import hla.rti1516e.time.HLAfloat64Time;
 import hla.rti1516e.time.HLAfloat64TimeFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class BasicFederate {
 
@@ -23,14 +30,126 @@ public abstract class BasicFederate {
     protected HLAfloat64TimeFactory timeFactory; // set when we join
     public EncoderFactory encoderFactory;
 
+    protected List<FederationTimedEvent> internalEvents;
+    protected List<FederationTimedEvent> currentInternalEvents;
+
     protected String signature;
 
-    BasicFederate() {
-        signature = "BasicFederate";
+    protected BasicFederate(String federateName) {
+        signature = federateName;
+        internalEvents = new ArrayList<>();
+        currentInternalEvents = new ArrayList<>();
     }
 
     protected abstract void publishAndSubscribe() throws RTIexception;
-    protected abstract void runFederate(String federateName) throws RTIexception;
+    protected abstract void setFederateAmbassador() throws RTIexception;
+    protected abstract void processFederationNonTimedEvent(FederationEvent event) throws RTIexception;
+    protected abstract void processFederationTimedEvent(FederationTimedEvent event) throws RTIexception;
+    protected abstract void processNextInternalEvent(FederationTimedEvent event) throws RTIexception;
+    protected abstract void afterSynchronization() throws RTIexception;
+
+    protected void synchronizeWithFederation() throws RTIexception {
+        rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
+        rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
+        encoderFactory = RtiFactoryFactory.getRtiFactory().getEncoderFactory();
+        setFederateAmbassador();
+
+        rtiAmbassador.connect(federateAmbassador, CallbackModel.HLA_EVOKED);
+        createFederation();
+
+        joinFederation(signature);
+
+        timeFactory = (HLAfloat64TimeFactory) rtiAmbassador.getTimeFactory();
+
+        registerSynchronizationPoint();
+        waitForUser(" >>>>>>>>>> Press Enter to Continue <<<<<<<<<<");
+        awaitFederationSynchronization();
+
+
+    }
+
+    protected void configurateFederate(boolean timeConstrained, boolean timeRegulating) throws RTIexception {
+        setTimePolicy(timeConstrained, timeRegulating);
+        publishAndSubscribe();
+    }
+
+    /*
+    protected void runFederate(boolean timeConstrained, boolean timeRegulating) throws RTIexception {
+        rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
+        rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
+        encoderFactory = RtiFactoryFactory.getRtiFactory().getEncoderFactory();
+        setFederateAmbassador();
+
+        rtiAmbassador.connect(federateAmbassador, CallbackModel.HLA_EVOKED);
+        createFederation();
+
+        joinFederation(signature);
+
+        timeFactory = (HLAfloat64TimeFactory) rtiAmbassador.getTimeFactory();
+
+        registerSynchronizationPoint();
+        waitForUser(" >>>>>>>>>> Press Enter to Continue <<<<<<<<<<");
+        awaitFederationSynchronization();
+
+        setTimePolicy(timeConstrained, timeRegulating);
+        publishAndSubscribe();
+        afterSynchronization();
+
+        while(federateAmbassador.isRunning()) {
+            mainLoop();
+        }
+    }
+
+
+    protected void mainLoop() throws RTIexception {
+
+        boolean internalEventPending = false;
+        double timeToAdvance = federateAmbassador.getFederateTime() + federateAmbassador.getFederateTimeStep();
+        double nextInternalEventTime = 0.0;
+        advanceTime(timeToAdvance);
+
+        if(internalEvents.size() > 0) {
+            internalEvents.sort(new TimedEventComparator());
+            nextInternalEventTime = ((HLAfloat64Time) internalEvents.get(0).getTime()).getValue();
+            timeToAdvance = nextInternalEventTime;
+            nextEventRequest(timeToAdvance);
+            internalEventPending = true;
+        }
+
+        if(federateAmbassador.federationNonTimedEvents.size() > 0) {
+            for(FederationEvent event: federateAmbassador.federationNonTimedEvents) {
+                processFederationNonTimedEvent(event);
+            }
+            federateAmbassador.federationNonTimedEvents.clear();
+        }
+
+        if(federateAmbassador.federationTimedEvents.size() > 0) {
+            federateAmbassador.federationTimedEvents.sort(new TimedEventComparator());
+            for(FederationTimedEvent event: federateAmbassador.federationTimedEvents) {
+                processFederationTimedEvent(event);
+            }
+            int lastIndex = federateAmbassador.federationTimedEvents.size() - 1;
+            LogicalTime logicalEventTime = federateAmbassador.federationTimedEvents.get(lastIndex).getTime();
+            advanceTime(logicalEventTime);
+            timeToAdvance = convertLogicalTime(logicalEventTime);
+            federateAmbassador.federationTimedEvents.clear();
+        }
+
+        if( timeToAdvance > 0.0) {
+            if (federateAmbassador.getGrantedTime() == timeToAdvance) {
+                if(federateAmbassador.isRegulating()) {
+                    timeToAdvance += federateAmbassador.getFederateLookahead();
+                }
+                federateAmbassador.setFederateTime(timeToAdvance);
+                if(internalEventPending) {
+                    if (federateAmbassador.getFederateTime() >= nextInternalEventTime) {
+                        processNextInternalEvent(internalEvents.get(0));
+                        internalEvents.remove(0);
+                    }
+                }
+            }
+        }
+    }*/
 
     protected void log( String message )
     {
@@ -40,6 +159,10 @@ public abstract class BasicFederate {
     protected LogicalTime convertTime(double time )
     {
         return timeFactory.makeTime(time);
+    }
+
+    protected double convertLogicalTime(LogicalTime time) {
+        return ((HLAfloat64Time)time).getValue();
     }
 
     protected LogicalTimeInterval convertInterval(double time )
@@ -138,9 +261,27 @@ public abstract class BasicFederate {
 
     protected void advanceTime( double timestep ) throws RTIexception
     {
-        federateAmbassador.setAdvancing(true);
         LogicalTime newTime = convertTime( timestep );
-        rtiAmbassador.timeAdvanceRequest( newTime );
+        advanceTime(newTime);
+    }
+
+    protected void advanceTime(LogicalTime timestep) throws RTIexception {
+        federateAmbassador.setAdvancing(true);
+        rtiAmbassador.timeAdvanceRequest( timestep );
+        while( federateAmbassador.isAdvancing() )
+        {
+            rtiAmbassador.evokeMultipleCallbacks( 0.1, 0.2 );
+        }
+    }
+
+    protected double getNextTime() {
+        return federateAmbassador.getFederateTime() + federateAmbassador.getFederateLookahead();
+    }
+
+    protected void nextEventRequest( double time ) throws RTIexception {
+        federateAmbassador.setAdvancing(true);
+        LogicalTime newTime = convertTime(time);
+        rtiAmbassador.nextMessageRequest(newTime);
 
         while( federateAmbassador.isAdvancing() )
         {
@@ -177,11 +318,6 @@ public abstract class BasicFederate {
             e.printStackTrace();
             return null;
         }
-    }
-
-    public ObjectClassHandle retrieveClassHandle(ObjectInstanceHandle handle) throws RTIexception {
-        ObjectClassHandle classHandle = rtiAmbassador.getKnownObjectClassHandle(handle);
-        return classHandle;
     }
 
 }

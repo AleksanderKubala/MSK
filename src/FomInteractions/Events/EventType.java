@@ -3,6 +3,7 @@ package FomInteractions.Events;
 public enum EventType {
     SEAT_TAKEN,
     SEAT_FREED,
+    CLIENT_ARRIVED,
     CLIENT_LEFT_QUEUE,
     CLIENT_WAITING,
     CLIENT_SERVICED,

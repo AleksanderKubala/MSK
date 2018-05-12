@@ -1,7 +1,8 @@
 package Ambassadors;
 
 import Federates.BasicFederate;
-import FomInteractions.Events.TimedEvent;
+import FomInteractions.Events.FederationEvent;
+import FomInteractions.Events.FederationTimedEvent;
 import hla.rti1516e.*;
 import hla.rti1516e.FederateAmbassador;
 import hla.rti1516e.time.HLAfloat64Time;
@@ -31,7 +32,8 @@ public class BasicAmbassador extends NullFederateAmbassador {
 
     protected BasicFederate federate;
 
-    public List<TimedEvent> federationEvents;
+    public List<FederationTimedEvent> federationTimedEvents;
+    public List<FederationEvent> federationNonTimedEvents;
     protected Map<ObjectInstanceHandle, ObjectClassHandle> instanceClassMap;
 
     BasicAmbassador(BasicFederate federate) {
@@ -45,7 +47,8 @@ public class BasicAmbassador extends NullFederateAmbassador {
         isReadyToRun = false;
         running = true;
         signature = "BasicAmbassador";
-        federationEvents = new ArrayList<>();
+        federationTimedEvents = new ArrayList<>();
+        federationNonTimedEvents = new ArrayList<>();
         instanceClassMap = new HashMap<>();
     }
 
@@ -114,6 +117,7 @@ public class BasicAmbassador extends NullFederateAmbassador {
         log( "Discoverd Object: handle=" + theObject + ", classHandle=" +
                 theObjectClass + ", name=" + objectName );
     }
+
 
     @Override
     public void reflectAttributeValues( ObjectInstanceHandle theObject,
@@ -288,5 +292,9 @@ public class BasicAmbassador extends NullFederateAmbassador {
 
     public void setFederateTime(double federateTime) {
         this.federateTime = federateTime;
+    }
+
+    public void setFederateLookahead(double federateLookahead) {
+        this.federateLookahead = federateLookahead;
     }
 }

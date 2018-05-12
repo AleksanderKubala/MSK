@@ -2,6 +2,8 @@ package FomObjects;
 
 import hla.rti1516e.ObjectInstanceHandle;
 
+import java.util.Comparator;
+
 public class Table extends BasicFomObject{
 
     private int tableNumber;
@@ -24,4 +26,5 @@ public class Table extends BasicFomObject{
     public void setFreeSeatsNow(int freeSeatsNow) {
         this.freeSeatsNow = freeSeatsNow;
     }
+
 }
