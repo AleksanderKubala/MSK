@@ -36,14 +36,14 @@ public class TableAmbassador extends BasicAmbassador {
             int tableNumber = retrieveTableNumber(theParameters);
             builder.append("Table number: " + tableNumber);
             TableInteraction interaction = new TableInteraction(time, EventType.SEAT_FREED, tableNumber);
-            federationEvents.add(interaction);
+            federationTimedEvents.add(interaction);
         }
         if (interactionClass.equals(seatTakenHandle)) {
             builder.append("Seat taken, ");
             int tableNumber = retrieveTableNumber(theParameters);
             builder.append("Table number: " + tableNumber);
             TableInteraction interaction = new TableInteraction(time, EventType.SEAT_TAKEN, tableNumber);
-            federationEvents.add(interaction);
+            federationTimedEvents.add(interaction);
         }
 
         log(builder.toString());

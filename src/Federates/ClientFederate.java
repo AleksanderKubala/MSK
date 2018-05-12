@@ -1,10 +1,7 @@
 package Federates;
 
 import Ambassadors.ClientAmbassador;
-import FomInteractions.Events.EventType;
-import FomInteractions.Events.TimedEvent;
-import FomInteractions.Events.TimedEventComparator;
-import FomInteractions.Events.UpdateSubscribedObjects;
+import FomInteractions.Events.*;
 import FomObjects.Dish;
 import FomObjects.Table;
 import hla.rti1516e.*;
@@ -35,11 +32,11 @@ public class ClientFederate extends BasicFederate {
     public InteractionClassHandle seatFreedHandle;
     public ParameterHandle tableNumberParamHandle;
 
-    public ClientFederate() {
+    public ClientFederate(String federateName) {
+        super(federateName);
         tableInstanceMap = new HashMap<>();
         dishInstanceMap = new HashMap<>();
         clients = new ArrayList<>();
-        signature = "ClientFederate";
     }
 
     @Override
@@ -102,7 +99,58 @@ public class ClientFederate extends BasicFederate {
     }
 
     @Override
-    protected void runFederate(String federateName) throws RTIexception {
+    protected void setFederateAmbassador() throws RTIexception {
+        federateAmbassador = new ClientAmbassador(this);
+    }
+
+    @Override
+    protected void processFederationNonTimedEvent(FederationEvent event) throws RTIexception {
+        switch(event.getType()) {
+            case OBJECT_UPDATE:
+                UpdateSubscribedObjects update = (UpdateSubscribedObjects) event;
+                switch (update.getObjectType()) {
+                    case TABLE:
+                        updateTable(0.0, (Table) update.getObject());
+                        break;
+                    case DISH:
+                        updateDish(0.0, (Dish) update.getObject());
+                        break;
+                }
+        }
+    }
+
+    @Override
+    protected void processFederationTimedEvent(FederationTimedEvent event) throws RTIexception {
+        switch(event.getType()) {
+            case ORDER_FILLED:
+                log("Done nothing with OrderFilled Interaction. Check runFederate()");
+                break;
+            case CLIENT_SERVICED:
+                log("Done nothing with ClientServiced Interaction. Check runFederate()");
+                break;
+
+        }
+    }
+
+    @Override
+    protected void processNextInternalEvent(FederationTimedEvent event) throws RTIexception {
+        userInput();
+    }
+
+    @Override
+    protected void afterSynchronization() throws RTIexception {
+
+    }
+
+    /*
+    @Override
+    protected void mainLoop() throws RTIexception {
+        super.mainLoop();
+        userInput();
+    }*/
+
+
+    protected void runFederate(boolean timeConstrained, boolean timeRegulating) throws RTIexception {
         rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
         rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
         encoderFactory = RtiFactoryFactory.getRtiFactory().getEncoderFactory();
@@ -111,7 +159,7 @@ public class ClientFederate extends BasicFederate {
         rtiAmbassador.connect(federateAmbassador, CallbackModel.HLA_EVOKED);
         createFederation();
 
-        joinFederation("Client");
+        joinFederation(signature);
 
         timeFactory = (HLAfloat64TimeFactory) rtiAmbassador.getTimeFactory();
 
@@ -119,7 +167,7 @@ public class ClientFederate extends BasicFederate {
         waitForUser(" >>>>>>>>>> Press Enter to Continue <<<<<<<<<<");
         awaitFederationSynchronization();
 
-        setTimePolicy(true, true);
+        setTimePolicy(timeConstrained, timeRegulating);
         publishAndSubscribe();
 
         while(federateAmbassador.isRunning()) {
@@ -127,9 +175,28 @@ public class ClientFederate extends BasicFederate {
             double newTime = federateAmbassador.getFederateTime() + federateAmbassador.getFederateLookahead();
             advanceTime(newTime);
 
-            if(federateAmbassador.federationEvents.size() > 0) {
-                federateAmbassador.federationEvents.sort(new TimedEventComparator());
-                for(TimedEvent event: federateAmbassador.federationEvents) {
+            //TODO przerobić komunikację między Client i Table, aby aktualizacja obiektów nie była regulowana czasem
+            if(federateAmbassador.federationNonTimedEvents.size() > 0) {
+                for(FederationEvent event: federateAmbassador.federationNonTimedEvents) {
+                    switch(event.getType()) {
+                        case OBJECT_UPDATE:
+                            UpdateSubscribedObjects update = (UpdateSubscribedObjects) event;
+                            switch (update.getObjectType()) {
+                                case TABLE:
+                                    updateTable(0.0, (Table) update.getObject());
+                                    break;
+                                case DISH:
+                                    updateDish(0.0, (Dish) update.getObject());
+                                    break;
+                            }
+                    }
+                }
+                federateAmbassador.federationNonTimedEvents.clear();
+            }
+
+            if(federateAmbassador.federationTimedEvents.size() > 0) {
+                federateAmbassador.federationTimedEvents.sort(new TimedEventComparator());
+                for(FederationTimedEvent event: federateAmbassador.federationTimedEvents) {
                     double time = ((HLAfloat64Time)(event.getTime())).getValue();
                     federateAmbassador.setFederateTime(time);
                     switch(event.getType()) {
@@ -139,21 +206,11 @@ public class ClientFederate extends BasicFederate {
                         case CLIENT_SERVICED:
                             log("Done nothing with ClientServiced Interaction. Check runFederate()");
                             break;
-                        case OBJECT_UPDATE:
-                            UpdateSubscribedObjects update = (UpdateSubscribedObjects)event;
-                            switch(update.getObjectType()) {
-                                case TABLE:
-                                    updateTable(time, (Table)update.getObject());
-                                    break;
-                                case DISH:
-                                    updateDish(time, (Dish)update.getObject());
-                                    break;
-                            }
+
                     }
                 }
-                federateAmbassador.federationEvents.clear();
+                federateAmbassador.federationTimedEvents.clear();
             }
-
 
 
             if(federateAmbassador.getGrantedTime() == newTime) {
@@ -164,15 +221,17 @@ public class ClientFederate extends BasicFederate {
             rtiAmbassador.evokeMultipleCallbacks(0.1, 0.2);
 
             if(!tableInstanceMap.isEmpty()) {
-                UserInput();
+                userInput();
             }
             else {
                 log("Awaiting for Table Instances...");
             }
+
         }
     }
 
-    private void UserInput() throws RTIexception {
+
+    private void userInput() throws RTIexception {
 
         double time = federateAmbassador.getFederateTime();
         String number;
@@ -226,7 +285,7 @@ public class ClientFederate extends BasicFederate {
 
     public static void main(String[] args) {
         try {
-            new ClientFederate().runFederate("Client");
+            new ClientFederate("ClientFederate").runFederate(true, true);
         } catch (RTIexception rtIexception) {
             rtIexception.printStackTrace();
         }

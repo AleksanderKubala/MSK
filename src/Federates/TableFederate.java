@@ -1,7 +1,8 @@
 package Federates;
 
 import Ambassadors.TableAmbassador;
-import FomInteractions.Events.TimedEvent;
+import FomInteractions.Events.FederationEvent;
+import FomInteractions.Events.FederationTimedEvent;
 import FomInteractions.Events.TimedEventComparator;
 import FomInteractions.Interactions.TableInteraction;
 import FomObjects.Table;
@@ -29,9 +30,8 @@ public class TableFederate extends BasicFederate {
     private AttributeHandle tableNumberAttrHandle;
     private AttributeHandle freeSeatsNowAttrHandle;
 
-    TableFederate(int tableInstancesCount, int minimumSeats, int maximumSeats) {
-        super();
-        signature = "TableFederate";
+    TableFederate(String federateName, int tableInstancesCount, int minimumSeats, int maximumSeats) {
+        super(federateName);
         tableInstanceMap = new HashMap<>();
         this.tableInstancesCount = tableInstancesCount;
         this.minimumSeats = minimumSeats;
@@ -65,7 +65,41 @@ public class TableFederate extends BasicFederate {
     }
 
     @Override
-    protected void runFederate(String federateName) throws RTIexception {
+    protected void setFederateAmbassador() throws RTIexception {
+        federateAmbassador = new TableAmbassador(this);
+    }
+
+    @Override
+    protected void processFederationNonTimedEvent(FederationEvent event) throws RTIexception {
+
+    }
+
+    @Override
+    protected void processFederationTimedEvent(FederationTimedEvent event) throws RTIexception {
+        double time = convertLogicalTime(event.getTime());
+        switch(event.getType()) {
+            case SEAT_FREED:
+                seatFreed(time + federateAmbassador.getFederateLookahead(), ((TableInteraction)event).getTableNumber());
+                break;
+            case SEAT_TAKEN:
+                seatTaken(time + federateAmbassador.getFederateLookahead(), ((TableInteraction)event).getTableNumber());
+                break;
+        }
+    }
+
+    @Override
+    protected void processNextInternalEvent(FederationTimedEvent event) throws RTIexception {
+
+    }
+
+    @Override
+    protected void afterSynchronization() throws RTIexception {
+        registerTableInstances();
+        setTableInstancesAttributes(federateAmbassador.getFederateTime() + federateAmbassador.getFederateLookahead());
+    }
+
+
+    protected void runFederate(boolean timeConstrained, boolean timeRegulating) throws RTIexception {
 
         rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
         encoderFactory = RtiFactoryFactory.getRtiFactory().getEncoderFactory();
@@ -82,7 +116,7 @@ public class TableFederate extends BasicFederate {
         waitForUser(" >>>>>>>>>> Press Enter to Continue <<<<<<<<<<");
         awaitFederationSynchronization();
 
-        setTimePolicy(true, true);
+        setTimePolicy(timeConstrained, timeRegulating);
         publishAndSubscribe();
         registerTableInstances();
         setTableInstancesAttributes(federateAmbassador.getFederateTime() + federateAmbassador.getFederateLookahead());
@@ -92,9 +126,9 @@ public class TableFederate extends BasicFederate {
             double newTime = federateAmbassador.getFederateTime() + federateAmbassador.getFederateLookahead();
             advanceTime(newTime);
 
-            if(federateAmbassador.federationEvents.size() > 0) {
-                federateAmbassador.federationEvents.sort(new TimedEventComparator());
-                for(TimedEvent event: federateAmbassador.federationEvents) {
+            if(federateAmbassador.federationTimedEvents.size() > 0) {
+                federateAmbassador.federationTimedEvents.sort(new TimedEventComparator());
+                for(FederationTimedEvent event: federateAmbassador.federationTimedEvents) {
                     double time = ((HLAfloat64Time)(event.getTime())).getValue();
                     federateAmbassador.setFederateTime(time);
                     switch(event.getType()) {
@@ -106,7 +140,7 @@ public class TableFederate extends BasicFederate {
                             break;
                     }
                 }
-                federateAmbassador.federationEvents.clear();
+                federateAmbassador.federationTimedEvents.clear();
             }
 
 
@@ -127,6 +161,7 @@ public class TableFederate extends BasicFederate {
         finish();
 
     }
+
 
     private void registerTableInstances() throws RTIexception{
 
@@ -184,7 +219,14 @@ public class TableFederate extends BasicFederate {
 
     public static void main(String[] args) {
         try {
-            new TableFederate(6, 2, 4).runFederate("Table");
+            new TableFederate(
+                    "TableFederate",
+                    6,
+                    2,
+                    4)
+                    .runFederate(
+                            true,
+                            true);
         } catch (RTIexception rtIexception) {
             rtIexception.printStackTrace();
         }

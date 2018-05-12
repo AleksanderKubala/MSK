@@ -30,7 +30,7 @@ public class ClientAmbassador extends BasicAmbassador{
     public ClientAmbassador(BasicFederate federate) {
         super(federate);
         signature = "ClientAmbassador";
-        federateLookahead = 1.0;
+        federateLookahead = 2.0;
     }
 
     @Override
@@ -60,7 +60,7 @@ public class ClientAmbassador extends BasicAmbassador{
             int waiterNumber = theParameters.getValueReference(waiterNumberParamHandle).getInt();
             builder.append("Client number: " + clientNumber);
             WaiterInteraction interaction = new WaiterInteraction(time, EventType.CLIENT_SERVICED, clientNumber, waiterNumber);
-            federationEvents.add(interaction);
+            federationTimedEvents.add(interaction);
         }
         if (interactionClass.equals(orderFilledHandle)) {
             builder.append("Order filled, ");
@@ -68,7 +68,7 @@ public class ClientAmbassador extends BasicAmbassador{
             int dishNumber = theParameters.getValueReference(dishNumberParamHandle).getInt();
             builder.append("Client number: " + clientNumber);
             DishOrderInteraction interaction = new DishOrderInteraction(time, EventType.ORDER_FILLED, clientNumber, dishNumber);
-            federationEvents.add(interaction);
+            federationTimedEvents.add(interaction);
         }
 
         log(builder.toString());
@@ -88,8 +88,7 @@ public class ClientAmbassador extends BasicAmbassador{
         ObjectClassHandle classHandle = instanceClassMap.get(theObject);
         if(classHandle.equals(tableClassHandle)) {
             builder.append("Table: (time: " + time + ")");
-            federationEvents.add( new UpdateSubscribedObjects(
-                    time,
+            federationNonTimedEvents.add( new UpdateSubscribedObjects(
                     EventType.OBJECT_UPDATE,
                     FomObjectType.TABLE,
                     retrieveTableObject(theObject, theAttributes)));
@@ -97,8 +96,7 @@ public class ClientAmbassador extends BasicAmbassador{
         }
         if(classHandle.equals(dishClassHandle)) {
             builder.append("Dish: (time:  " + time + ")");
-            federationEvents.add(new UpdateSubscribedObjects(
-                    time,
+            federationNonTimedEvents.add(new UpdateSubscribedObjects(
                     EventType.OBJECT_UPDATE,
                     FomObjectType.DISH,
                     retrieveDishObject(theObject, theAttributes)));
@@ -125,6 +123,6 @@ public class ClientAmbassador extends BasicAmbassador{
         int dishNumber = dishNumberWrapper.getInt();
         double consumptionTime = (double)consumptionTimeWrapper.getInt();
 
-        return new Dish(handle, dishNumber, consumptionTime);
+        return new Dish(handle, dishNumber, consumptionTime, 0.0);
     }
 }
