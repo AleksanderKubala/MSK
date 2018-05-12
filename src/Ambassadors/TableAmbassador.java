@@ -13,6 +13,7 @@ public class TableAmbassador extends BasicAmbassador {
     public InteractionClassHandle seatFreedHandle;
 
     public ParameterHandle tableNumberParamHandle;
+    public ParameterHandle clientNumberParamHandle;
 
     public TableAmbassador(BasicFederate federate) {
         super(federate);
@@ -31,26 +32,21 @@ public class TableAmbassador extends BasicAmbassador {
                                    SupplementalReceiveInfo receiveInfo) {
 
         StringBuilder builder = new StringBuilder("Interaction received (time: " + time.toString() + "): ");
+        int tableNumber = theParameters.getValueReference(tableNumberParamHandle).getInt();
+        int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
+        builder.append("Client " + clientNumber);
         if(interactionClass.equals(seatFreedHandle)) {
-            builder.append("Seat freed, ");
-            int tableNumber = retrieveTableNumber(theParameters);
-            builder.append("Table number: " + tableNumber);
-            TableInteraction interaction = new TableInteraction(time, EventType.SEAT_FREED, tableNumber);
+            builder.append(" freed seat at table " + tableNumber);
+            TableInteraction interaction = new TableInteraction(time, EventType.SEAT_FREED, clientNumber, tableNumber);
             federationTimedEvents.add(interaction);
         }
         if (interactionClass.equals(seatTakenHandle)) {
-            builder.append("Seat taken, ");
-            int tableNumber = retrieveTableNumber(theParameters);
-            builder.append("Table number: " + tableNumber);
-            TableInteraction interaction = new TableInteraction(time, EventType.SEAT_TAKEN, tableNumber);
+            builder.append(" sat at table " + tableNumber);
+            TableInteraction interaction = new TableInteraction(time, EventType.SEAT_TAKEN, clientNumber, tableNumber);
             federationTimedEvents.add(interaction);
         }
 
         log(builder.toString());
     }
 
-    private int retrieveTableNumber(ParameterHandleValueMap parameters) {
-        ByteWrapper wrapper = parameters.getValueReference(tableNumberParamHandle);
-        return wrapper.getInt();
-    }
 }

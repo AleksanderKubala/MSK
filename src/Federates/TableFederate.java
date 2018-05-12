@@ -51,17 +51,19 @@ public class TableFederate extends BasicFederate {
 
         rtiAmbassador.publishObjectClassAttributes(tableClassHandle, tableAttributeHandleSet);
 
-        InteractionClassHandle seatTakenIHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.TableInteraction.SeatTaken");
-        InteractionClassHandle seatFreedIHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.TableInteraction.SeatFreed");
+        InteractionClassHandle seatTakenHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.TableInteraction.SeatTaken");
+        InteractionClassHandle seatFreedHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.TableInteraction.SeatFreed");
 
-        ParameterHandle tableNumberHandle = rtiAmbassador.getParameterHandle(seatTakenIHandle, "tableNumber");
+        ParameterHandle tableNumberHandle = rtiAmbassador.getParameterHandle(seatTakenHandle, "tableNumber");
+        ParameterHandle clientNumberParamHandle = rtiAmbassador.getParameterHandle(seatTakenHandle, "clientNumber");
 
-        ((TableAmbassador)federateAmbassador).seatTakenHandle = seatTakenIHandle;
-        ((TableAmbassador)federateAmbassador).seatFreedHandle = seatFreedIHandle;
+        ((TableAmbassador)federateAmbassador).seatTakenHandle = seatTakenHandle;
+        ((TableAmbassador)federateAmbassador).seatFreedHandle = seatFreedHandle;
         ((TableAmbassador)federateAmbassador).tableNumberParamHandle = tableNumberHandle;
+        ((TableAmbassador)federateAmbassador).clientNumberParamHandle = clientNumberParamHandle;
 
-        rtiAmbassador.subscribeInteractionClass(seatTakenIHandle);
-        rtiAmbassador.subscribeInteractionClass(seatFreedIHandle);
+        rtiAmbassador.subscribeInteractionClass(seatTakenHandle);
+        rtiAmbassador.subscribeInteractionClass(seatFreedHandle);
     }
 
     @Override

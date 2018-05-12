@@ -24,6 +24,7 @@ public class ClientFederate extends BasicFederate {
 
     public InteractionClassHandle clientLeftQueueHandle;
     public InteractionClassHandle clientWaitingHandle;
+    public InteractionClassHandle clientArrivedHandle;
     public ParameterHandle clientNumberParamHandle;
 
     public InteractionClassHandle orderPlacedHandle;
@@ -65,17 +66,19 @@ public class ClientFederate extends BasicFederate {
 
         clientLeftQueueHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.ClientLeftQueue");
         clientWaitingHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.ClientServiced");
+        clientArrivedHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.ClientArrived");
         clientNumberParamHandle = rtiAmbassador.getParameterHandle(clientWaitingHandle, "clientNumber");
 
         orderPlacedHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.DishOrderInteraction.OrderPlaced");
         dishNumberParamHandle = rtiAmbassador.getParameterHandle( orderPlacedHandle, "dishNumber");
 
-        seatTakenHandle = rtiAmbassador.getInteractionClassHandle( "InteractionRoot.TableInteraction.SeatTaken");
-        seatFreedHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.TableInteraction.SeatFreed");
+        seatTakenHandle = rtiAmbassador.getInteractionClassHandle( "InteractionRoot.ClientInteraction.TableInteraction.SeatTaken");
+        seatFreedHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.TableInteraction.SeatFreed");
         tableNumberParamHandle = rtiAmbassador.getParameterHandle(seatFreedHandle, "tableNumber");
 
         rtiAmbassador.publishInteractionClass(clientWaitingHandle);
         rtiAmbassador.publishInteractionClass(clientLeftQueueHandle);
+        rtiAmbassador.publishInteractionClass(clientArrivedHandle);
         rtiAmbassador.publishInteractionClass(orderPlacedHandle);
         rtiAmbassador.publishInteractionClass(seatFreedHandle);
         rtiAmbassador.publishInteractionClass(seatTakenHandle);
@@ -161,12 +164,13 @@ public class ClientFederate extends BasicFederate {
                 clientsQueue.put(
                         clientArrived.getClientNumber(),
                         generateClient(convertLogicalTime(event.getTime()), clientArrived.getClientNumber()));
-                //sendClientInteraction(getNextTime(), client.getClientNumber(), EventType.CLIENT_ARRIVED);
+                sendClientInteraction(getNextTime(), clientArrived.getClientNumber(), EventType.CLIENT_ARRIVED);
                 generateClientArrivedEvent();
                 break;
             case CLIENT_LEFT_QUEUE:
                 ClientInteraction clientLeftQueue = (ClientInteraction)event;
                 clientLeftQueue(convertLogicalTime(event.getTime()), clientLeftQueue.getClientNumber());
+                sendClientInteraction(getNextTime(), clientLeftQueue.getClientNumber(), EventType.CLIENT_LEFT_QUEUE);
                 break;
         }
     }
@@ -326,9 +330,11 @@ public class ClientFederate extends BasicFederate {
 
 
     private void sendTableInteraction(double time, int clientNumber, int tableNumber, EventType type) throws RTIexception {
-        ParameterHandleValueMap params = rtiAmbassador.getParameterHandleValueMapFactory().create(1);
+        ParameterHandleValueMap params = rtiAmbassador.getParameterHandleValueMapFactory().create(2);
         HLAinteger32BE tableNumberValue = encoderFactory.createHLAinteger32BE(tableNumber);
+        HLAinteger32BE clientNumberValue = encoderFactory.createHLAinteger32BE(clientNumber);
         params.put(tableNumberParamHandle, tableNumberValue.toByteArray());
+        params.put(clientNumberParamHandle, clientNumberValue.toByteArray());
 
         HLAfloat64Time timeValue = timeFactory.makeTime( time);
         switch(type) {
@@ -344,7 +350,21 @@ public class ClientFederate extends BasicFederate {
     }
 
     private void sendClientInteraction(double time, int clientNumber, EventType type) throws RTIexception {
+        ParameterHandleValueMap params = rtiAmbassador.getParameterHandleValueMapFactory().create(1);
+        HLAinteger32BE clientNumberValue = encoderFactory.createHLAinteger32BE(clientNumber);
+        params.put(clientNumberParamHandle, clientNumberValue.toByteArray());
 
+        HLAfloat64Time timeValue = timeFactory.makeTime( time);
+        switch(type) {
+            case CLIENT_ARRIVED:
+                log("(time: " + time + "): Client " + clientNumber + " arrived");
+                rtiAmbassador.sendInteraction(clientArrivedHandle, params, generateTag(), timeValue);
+                break;
+            case CLIENT_LEFT_QUEUE:
+                log("(time: " + time + "): Client " + clientNumber + " left the queue");
+                rtiAmbassador.sendInteraction(clientLeftQueueHandle, params, generateTag(), timeValue);
+                break;
+        }
     }
 
     private void updateTable(double time, Table table) {

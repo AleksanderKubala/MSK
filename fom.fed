@@ -26,11 +26,6 @@
   (interactions
     (class InteractionRoot reliable timestamp
       (class RTIprivate reliable timestamp)
-      (class TableInteraction reliable timestamp
-        (parameter tableNumber)
-        (class SeatTaken reliable timestamp)
-        (class SeatFreed reliable timestamp)
-      )
       (class ClientInteraction reliable timestamp
         (parameter clientNumber)
         (class ClientArrived reliable timestamp)
@@ -38,6 +33,11 @@
         (class ClientWaiting reliable timestamp)
         (class ClientServiced reliable timestamp
             (parameter waiterNumber)
+        )
+        (class TableInteraction reliable timestamp
+          (parameter tableNumber)
+          (class SeatTaken reliable timestamp)
+          (class SeatFreed reliable timestamp)
         )
         (class DishOrderInteraction reliable timestamp
             (parameter dishNumber)
