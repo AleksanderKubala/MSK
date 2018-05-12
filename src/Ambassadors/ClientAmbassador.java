@@ -30,6 +30,7 @@ public class ClientAmbassador extends BasicAmbassador{
     public ClientAmbassador(BasicFederate federate) {
         super(federate);
         signature = "ClientAmbassador";
+        federateLookahead = 1.0;
     }
 
     @Override

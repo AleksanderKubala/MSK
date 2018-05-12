@@ -17,6 +17,7 @@ public class TableAmbassador extends BasicAmbassador {
     public TableAmbassador(BasicFederate federate) {
         super(federate);
         signature = "TableAmbassador";
+        federateLookahead = 1.0;
     }
 
     @Override

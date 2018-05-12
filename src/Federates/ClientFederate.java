@@ -123,7 +123,8 @@ public class ClientFederate extends BasicFederate {
         publishAndSubscribe();
 
         while(federateAmbassador.isRunning()) {
-            double newTime = federateAmbassador.getFederateTime() + federateAmbassador.getFederateTimeStep();
+
+            double newTime = federateAmbassador.getFederateTime() + federateAmbassador.getFederateLookahead();
             advanceTime(newTime);
 
             if(federateAmbassador.federationEvents.size() > 0) {
@@ -153,36 +154,43 @@ public class ClientFederate extends BasicFederate {
                 federateAmbassador.federationEvents.clear();
             }
 
+
+
             if(federateAmbassador.getGrantedTime() == newTime) {
-                //newTime += federateAmbassador.getFederateLookahead();
+                newTime += federateAmbassador.getFederateLookahead();
                 federateAmbassador.setFederateTime(newTime);
             }
 
             rtiAmbassador.evokeMultipleCallbacks(0.1, 0.2);
 
-            UserInput();
+            if(!tableInstanceMap.isEmpty()) {
+                UserInput();
+            }
+            else {
+                log("Awaiting for Table Instances...");
+            }
         }
     }
 
     private void UserInput() throws RTIexception {
 
-        double time = federateAmbassador.getFederateTime() + federateAmbassador.getFederateLookahead();
-        String numer;
-        System.out.println("\nSelect action:");
+        double time = federateAmbassador.getFederateTime();
+        String number;
+        System.out.println("\nSelect action (time: " + time + "):");
         System.out.println("(1) Take seat");
         System.out.println("(2) Free seat");
 
         String input = waitForUser("\t");
         switch(input){
             case "1":
-                System.out.print("Numer stolika: ");
-                numer = waitForUser("");
-                sendTableInteraction(time, Integer.parseInt(numer), EventType.SEAT_TAKEN);
+                System.out.print("TableNumber: ");
+                number = waitForUser("");
+                sendTableInteraction(time, Integer.parseInt(number), EventType.SEAT_TAKEN);
                 break;
             case "2":
-                System.out.print("Numer stolika: ");
-                numer = waitForUser("");
-                sendTableInteraction(time, Integer.parseInt(numer), EventType.SEAT_FREED);
+                System.out.print("TableNumber: ");
+                number = waitForUser("");
+                sendTableInteraction(time, Integer.parseInt(number), EventType.SEAT_FREED);
                 break;
         }
     }
@@ -192,8 +200,7 @@ public class ClientFederate extends BasicFederate {
         HLAinteger32BE tableNumberValue = encoderFactory.createHLAinteger32BE(tableNumber);
         params.put(tableNumberParamHandle, tableNumberValue.toByteArray());
 
-        HLAfloat64Time timeValue = timeFactory.makeTime( federateAmbassador.getFederateTime() +
-                federateAmbassador.getFederateLookahead());
+        HLAfloat64Time timeValue = timeFactory.makeTime( time);
         switch(type) {
             case SEAT_TAKEN:
                 log("(time: " + time + "): Client taken place at Table " + tableNumber);
@@ -210,6 +217,7 @@ public class ClientFederate extends BasicFederate {
         Table cachedTable = tableInstanceMap.putIfAbsent(table.getTableNumber(), table);
         if(cachedTable != null)
             cachedTable.setFreeSeatsNow(table.getFreeSeatsNow());
+        log("Received Table instance: TableNumber: " + table.getTableNumber() + ", freeSeats: " + table.getFreeSeatsNow());
     }
 
     private void updateDish(double time, Dish dish) {

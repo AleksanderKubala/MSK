@@ -88,7 +88,8 @@ public class TableFederate extends BasicFederate {
         setTableInstancesAttributes(federateAmbassador.getFederateTime() + federateAmbassador.getFederateLookahead());
 
         while(federateAmbassador.isRunning()) {
-            double newTime = federateAmbassador.getFederateTime() + federateAmbassador.getFederateTimeStep();
+
+            double newTime = federateAmbassador.getFederateTime() + federateAmbassador.getFederateLookahead();
             advanceTime(newTime);
 
             if(federateAmbassador.federationEvents.size() > 0) {
@@ -107,6 +108,8 @@ public class TableFederate extends BasicFederate {
                 }
                 federateAmbassador.federationEvents.clear();
             }
+
+
 
             if(federateAmbassador.getGrantedTime() == newTime) {
                 //newTime += federateAmbassador.getFederateLookahead();
