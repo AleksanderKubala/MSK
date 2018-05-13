@@ -289,6 +289,24 @@ public abstract class BasicFederate {
         }
     }
 
+    protected void retrieveCurrentInternalEvents(double time) {
+        boolean searching = true;
+        int eventCount = 0;
+        for(int i = 0; (i < internalEvents.size()) && searching; i++) {
+            FederationTimedEvent event = internalEvents.get(i);
+            double eventTime = convertLogicalTime(event.getTime());
+            if(eventTime == time) {
+                currentInternalEvents.add(event);
+                eventCount++;
+            } else {
+                searching = false;
+            }
+        }
+        for(int i = 0; i < eventCount; i++) {
+            internalEvents.remove(0);
+        }
+    }
+
     protected void deleteObject( ObjectInstanceHandle handle ) throws RTIexception
     {
         rtiAmbassador.deleteObjectInstance( handle, generateTag() );

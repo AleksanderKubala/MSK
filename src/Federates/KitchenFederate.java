@@ -105,64 +105,6 @@ public class KitchenFederate extends BasicFederate {
 
     }
 
-    /*
-    @Override
-    protected void runFederate(boolean timeConstrained, boolean timeRegulating) throws RTIexception {
-        rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
-        rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
-        encoderFactory = RtiFactoryFactory.getRtiFactory().getEncoderFactory();
-        federateAmbassador = new KitchenAmbassador(this);
-
-        rtiAmbassador.connect(federateAmbassador, CallbackModel.HLA_EVOKED);
-        createFederation();
-
-        joinFederation("Kitchen");
-
-        timeFactory = (HLAfloat64TimeFactory) rtiAmbassador.getTimeFactory();
-
-        registerSynchronizationPoint();
-        waitForUser(" >>>>>>>>>> Press Enter to Continue <<<<<<<<<<");
-        awaitFederationSynchronization();
-
-        setTimePolicy(timeConstrained, timeRegulating);
-        publishAndSubscribe();
-        registerDishInstances();
-        setDishInstancesAttributes(federateAmbassador.getFederateTime() + federateAmbassador.getFederateTimeStep());
-
-        while(federateAmbassador.isRunning()) {
-
-            if(internalEvents.size() > 0) {
-                internalEvents.sort(new TimedEventComparator());
-            }
-
-            double newTime = federateAmbassador.getFederateTime() + ((HLAfloat64Time)internalEvents.get(0).getTime()).getValue();
-            nextEventRequest(newTime);
-
-            if(federateAmbassador.federationTimedEvents.size() > 0) {
-                federateAmbassador.federationTimedEvents.sort(new TimedEventComparator());
-                for(FederationTimedEvent event: federateAmbassador.federationTimedEvents) {
-                    double time = ((HLAfloat64Time)(event.getTime())).getValue();
-                    federateAmbassador.setFederateTime(time);
-                    switch(event.getType()) {
-                        case ORDER_PLACED:
-                            DishOrderInteraction orderPlaced = (DishOrderInteraction)event;
-                            orderPlaced(time, orderPlaced);
-                            break;
-                    }
-                }
-                federateAmbassador.federationTimedEvents.clear();
-            }
-
-            if(federateAmbassador.getGrantedTime() == newTime) {
-                //newTime += federateAmbassador.getFederateLookahead();
-                federateAmbassador.setFederateTime(newTime);
-            }
-
-            rtiAmbassador.evokeMultipleCallbacks(0.1, 0.2);
-        }
-
-    }
-    */
 
     private void registerDishInstances() throws RTIexception{
 

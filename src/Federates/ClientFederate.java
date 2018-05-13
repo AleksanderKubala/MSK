@@ -6,12 +6,10 @@ import FomInteractions.Events.*;
 import FomInteractions.Interactions.ClientInteraction;
 import FomObjects.Dish;
 import FomObjects.Table;
-import FomObjects.TableComparator;
 import hla.rti1516e.*;
 import hla.rti1516e.encoding.HLAinteger32BE;
 import hla.rti1516e.exceptions.RTIexception;
 import hla.rti1516e.time.HLAfloat64Time;
-import hla.rti1516e.time.HLAfloat64TimeFactory;
 
 import java.util.*;
 
@@ -35,10 +33,10 @@ public class ClientFederate extends BasicFederate {
     public ParameterHandle tableNumberParamHandle;
 
     private double impatienceProbability;
-    private int impatienceMinTime;
-    private int impatienceMaxTime;
-    private int generationMinTime;
-    private int generationMaxTime;
+    private int minImpatienceTime;
+    private int maxImpatienceTime;
+    private int minGenerationTime;
+    private int maxGenerationTime;
 
     private int globalClientId;
 
@@ -54,10 +52,10 @@ public class ClientFederate extends BasicFederate {
         clientsQueue = new HashMap<>();
         clientsInside = new HashMap<>();
         this.impatienceProbability = impatienceProbability;
-        this.impatienceMinTime = impatienceAverageTime - impatienceDeviation;
-        this.impatienceMaxTime = impatienceAverageTime + impatienceDeviation;
-        this.generationMaxTime = clientGenerationAverageTime + clientGenerationDeviation;
-        this.generationMinTime = clientGenerationAverageTime - clientGenerationDeviation;
+        this.minImpatienceTime = impatienceAverageTime - impatienceDeviation;
+        this.maxImpatienceTime = impatienceAverageTime + impatienceDeviation;
+        this.maxGenerationTime = clientGenerationAverageTime + clientGenerationDeviation;
+        this.minGenerationTime = clientGenerationAverageTime - clientGenerationDeviation;
         globalClientId = 0;
     }
 
@@ -65,7 +63,7 @@ public class ClientFederate extends BasicFederate {
     protected void publishAndSubscribe() throws RTIexception {
 
         clientLeftQueueHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.ClientLeftQueue");
-        clientWaitingHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.ClientServiced");
+        clientWaitingHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.ClientWaiting");
         clientArrivedHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.ClientArrived");
         clientNumberParamHandle = rtiAmbassador.getParameterHandle(clientWaitingHandle, "clientNumber");
 
@@ -275,7 +273,7 @@ public class ClientFederate extends BasicFederate {
 
             if (federateAmbassador.getGrantedTime() == timeToAdvance) {
                 federateAmbassador.setFederateTime(timeToAdvance);
-                log("Time advanced to: " + timeToAdvance);
+                //log("Time advanced to: " + timeToAdvance);
                 if(internalEventsPending) {
                     if (federateAmbassador.getFederateTime() >= nextInternalEventTime) {
                         for(FederationTimedEvent event: currentInternalEvents) {
@@ -295,7 +293,7 @@ public class ClientFederate extends BasicFederate {
             isImpatient = true;
         }
         if(isImpatient) {
-            int impatienceTime = impatienceMinTime + random.nextInt(impatienceMaxTime - impatienceMinTime) + 1;
+            int impatienceTime = minImpatienceTime + random.nextInt(maxImpatienceTime - minImpatienceTime) + 1;
             LogicalTime impatienceEventTime = convertTime(federateAmbassador.getFederateTime() + (double)impatienceTime);
             ClientInteraction clientLeftQueue = new ClientInteraction(
                     impatienceEventTime,
@@ -324,6 +322,7 @@ public class ClientFederate extends BasicFederate {
                 clientsInside.put(client.getClientNumber(), client);
                 clientsQueue.remove(client.getClientNumber());
                 sendTableInteraction(getNextTime(), client.getClientNumber(), table.getTableNumber(), EventType.SEAT_TAKEN);
+                sendClientInteraction(getNextTime(), client.getClientNumber(), EventType.CLIENT_WAITING);
             }
         }
     }
@@ -364,6 +363,10 @@ public class ClientFederate extends BasicFederate {
                 log("(time: " + time + "): Client " + clientNumber + " left the queue");
                 rtiAmbassador.sendInteraction(clientLeftQueueHandle, params, generateTag(), timeValue);
                 break;
+            case CLIENT_WAITING:
+                log("(time: " + time + "): Client " + clientNumber + " waiting for service");
+                rtiAmbassador.sendInteraction(clientWaitingHandle, params, generateTag(), timeValue);
+                break;
         }
     }
 
@@ -381,7 +384,7 @@ public class ClientFederate extends BasicFederate {
     private void generateClientArrivedEvent() {
         Random random = new Random();
         double time = getNextTime();
-        double clientArrivalTime = getNextTime() + generationMinTime + random.nextInt(generationMaxTime - generationMinTime) + 1;
+        double clientArrivalTime = getNextTime() + minGenerationTime + random.nextInt(maxGenerationTime - minGenerationTime) + 1;
         int clientNumber = globalClientId;
         globalClientId++;
         ClientInteraction clientArrival = new ClientInteraction(
@@ -396,23 +399,7 @@ public class ClientFederate extends BasicFederate {
         clientsQueue.remove(clientNumber);
     }
 
-    private void retrieveCurrentInternalEvents(double time) {
-        boolean searching = true;
-        int eventCount = 0;
-        for(int i = 0; (i < internalEvents.size()) && searching; i++) {
-            FederationTimedEvent event = internalEvents.get(i);
-            double eventTime = convertLogicalTime(event.getTime());
-            if(eventTime == time) {
-                currentInternalEvents.add(event);
-                eventCount++;
-            } else {
-                searching = false;
-            }
-        }
-        for(int i = 0; i < eventCount; i++) {
-            internalEvents.remove(0);
-        }
-    }
+
 
     public static void main(String[] args) {
         try {
