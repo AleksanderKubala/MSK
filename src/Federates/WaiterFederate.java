@@ -79,6 +79,9 @@ public class WaiterFederate extends BasicFederate {
                 ClientInteraction clientWaiting = (ClientInteraction)event;
                 clientsWaiting.add(clientWaiting.getClientNumber());
                 break;
+            case FINISH:
+                federateAmbassador.stop();
+                break;
         }
     }
 

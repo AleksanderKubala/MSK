@@ -2,6 +2,7 @@ package Ambassadors;
 
 import Federates.BasicFederate;
 import FomInteractions.Events.EventType;
+import FomInteractions.Events.FederationTimedEvent;
 import FomInteractions.Interactions.ClientInteraction;
 import FomInteractions.Interactions.TableInteraction;
 import hla.rti1516e.*;
@@ -19,7 +20,7 @@ public class StatisticsAmbassador extends BasicAmbassador {
     public StatisticsAmbassador(BasicFederate federate) {
         super(federate);
         signature = "StatisticsAmbassador";
-        federateLookahead = 100.0;
+        //federateLookahead = 100.0;
     }
 
     @Override
@@ -33,29 +34,30 @@ public class StatisticsAmbassador extends BasicAmbassador {
                                    SupplementalReceiveInfo receiveInfo) {
 
         StringBuilder builder = new StringBuilder("Interaction received (time: " + time.toString() + "): ");
-        if(interactionClass.equals(clientArrivedHandle)) {
-            builder.append("Client Arrived, ");
-            int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
-            builder.append("Client number: " + clientNumber);
-            ClientInteraction interaction = new ClientInteraction(time, EventType.CLIENT_ARRIVED, clientNumber);
-            federationTimedEvents.add(interaction);
-        }
-        if(interactionClass.equals(clientLeftQueueHandle)) {
-            builder.append("Client Left Queue, ");
-            int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
-            builder.append("Client number: " + clientNumber);
-            ClientInteraction interaction = new ClientInteraction(time, EventType.CLIENT_LEFT_QUEUE, clientNumber);
-            federationTimedEvents.add(interaction);
-        }
-        if (interactionClass.equals(seatTakenHandle)) {
-            builder.append("Seat taken, ");
-            int tableNumber = theParameters.getValueReference(tableNumberParamHandle).getInt();
-            int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
-            builder.append("Table number: " + tableNumber);
-            TableInteraction interaction = new TableInteraction(time, EventType.SEAT_TAKEN, tableNumber, clientNumber);
-            federationTimedEvents.add(interaction);
-        }
 
-        log(builder.toString());
+            if (interactionClass.equals(clientArrivedHandle)) {
+                builder.append("Client Arrived, ");
+                int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
+                builder.append("Client number: " + clientNumber);
+                ClientInteraction interaction = new ClientInteraction(time, EventType.CLIENT_ARRIVED, clientNumber);
+                federationTimedEvents.add(interaction);
+            }
+            if (interactionClass.equals(clientLeftQueueHandle)) {
+                builder.append("Client Left Queue, ");
+                int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
+                builder.append("Client number: " + clientNumber);
+                ClientInteraction interaction = new ClientInteraction(time, EventType.CLIENT_LEFT_QUEUE, clientNumber);
+                federationTimedEvents.add(interaction);
+            }
+            if (interactionClass.equals(seatTakenHandle)) {
+                builder.append("Seat taken, ");
+                int tableNumber = theParameters.getValueReference(tableNumberParamHandle).getInt();
+                int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
+                builder.append("Table number: " + tableNumber);
+                TableInteraction interaction = new TableInteraction(time, EventType.SEAT_TAKEN, tableNumber, clientNumber);
+                federationTimedEvents.add(interaction);
+            }
+            log(builder.toString());
+
     }
 }

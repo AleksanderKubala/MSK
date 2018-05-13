@@ -2,27 +2,29 @@ package Federates.FederatesInternal;
 
 public class ClientStatistics {
 
-    private double arrivalTime;
-    private double seatTakenTime;
+    private Double arrivalTime;
+    private Double awaitEndTime;
 
-    public ClientStatistics(double arrivalTime) {
+    public ClientStatistics(Double arrivalTime) {
         this.arrivalTime = arrivalTime;
     }
 
-    public ClientStatistics(double arrivalTime, double seatTakenTime) {
+    public ClientStatistics(Double arrivalTime, Double awaitEndTime) {
         this.arrivalTime = arrivalTime;
-        this.seatTakenTime = seatTakenTime;
+        this.awaitEndTime = awaitEndTime;
     }
 
-    public double getArrivalTime() {
+    public Double getArrivalTime() {
         return arrivalTime;
     }
 
-    public double getSeatTakenTime() {
-        return seatTakenTime;
+    public Double getAwaitEndTime() {
+        return awaitEndTime;
     }
 
-    public void setSeatTakenTime(double seatTakenTime) {
-        this.seatTakenTime = seatTakenTime;
+    public void setAwaitEndTime(Double awaitEndTime) {
+        this.awaitEndTime = awaitEndTime;
     }
+
+
 }

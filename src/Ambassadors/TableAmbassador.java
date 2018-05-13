@@ -2,6 +2,7 @@ package Ambassadors;
 
 import Federates.BasicFederate;
 import FomInteractions.Events.EventType;
+import FomInteractions.Events.FederationTimedEvent;
 import FomInteractions.Interactions.TableInteraction;
 import hla.rti1516e.*;
 import hla.rti1516e.encoding.ByteWrapper;
@@ -18,6 +19,7 @@ public class TableAmbassador extends BasicAmbassador {
     public TableAmbassador(BasicFederate federate) {
         super(federate);
         signature = "TableAmbassador";
+        //federateLookahead = 1.0;
     }
 
     @Override
@@ -31,21 +33,20 @@ public class TableAmbassador extends BasicAmbassador {
                                    SupplementalReceiveInfo receiveInfo) {
 
         StringBuilder builder = new StringBuilder("Interaction received (time: " + time.toString() + "): ");
-        int tableNumber = theParameters.getValueReference(tableNumberParamHandle).getInt();
-        int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
-        builder.append("Client " + clientNumber);
-        if(interactionClass.equals(seatFreedHandle)) {
-            builder.append(" freed seat at table " + tableNumber);
-            TableInteraction interaction = new TableInteraction(time, EventType.SEAT_FREED, clientNumber, tableNumber);
-            federationTimedEvents.add(interaction);
-        }
-        if (interactionClass.equals(seatTakenHandle)) {
-            builder.append(" sat at table " + tableNumber);
-            TableInteraction interaction = new TableInteraction(time, EventType.SEAT_TAKEN, clientNumber, tableNumber);
-            federationTimedEvents.add(interaction);
-        }
 
-        log(builder.toString());
-    }
-
+            int tableNumber = theParameters.getValueReference(tableNumberParamHandle).getInt();
+            int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
+            builder.append("Client " + clientNumber);
+            if (interactionClass.equals(seatFreedHandle)) {
+                builder.append(" freed seat at table " + tableNumber);
+                TableInteraction interaction = new TableInteraction(time, EventType.SEAT_FREED, clientNumber, tableNumber);
+                federationTimedEvents.add(interaction);
+            }
+            if (interactionClass.equals(seatTakenHandle)) {
+                builder.append(" sat at table " + tableNumber);
+                TableInteraction interaction = new TableInteraction(time, EventType.SEAT_TAKEN, clientNumber, tableNumber);
+                federationTimedEvents.add(interaction);
+            }
+            log(builder.toString());
+        }
 }

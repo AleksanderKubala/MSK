@@ -2,6 +2,7 @@ package Ambassadors;
 
 import Federates.BasicFederate;
 import FomInteractions.Events.EventType;
+import FomInteractions.Events.FederationTimedEvent;
 import FomInteractions.Interactions.ClientInteraction;
 import hla.rti1516e.*;
 
@@ -13,7 +14,7 @@ public class WaiterAmbassador extends BasicAmbassador{
     public WaiterAmbassador(BasicFederate federate) {
         super(federate);
         signature = "WaiterAmbassador";
-        federateLookahead = 1.0;
+        //federateLookahead = 1.0;
     }
 
     @Override
@@ -27,11 +28,12 @@ public class WaiterAmbassador extends BasicAmbassador{
                                    SupplementalReceiveInfo receiveInfo) {
 
         StringBuilder builder = new StringBuilder("Interaction received (time: " + time.toString() + "): ");
-        int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
-        builder.append("Client " + clientNumber);
-        builder.append(" awaiting for service");
-        ClientInteraction interaction = new ClientInteraction(time, EventType.CLIENT_WAITING, clientNumber);
-        federationTimedEvents.add(interaction);
-        log(builder.toString());
-    }
+
+            int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
+            builder.append("Client " + clientNumber);
+            builder.append(" awaiting for service");
+            ClientInteraction interaction = new ClientInteraction(time, EventType.CLIENT_WAITING, clientNumber);
+            federationTimedEvents.add(interaction);
+            log(builder.toString());
+        }
 }

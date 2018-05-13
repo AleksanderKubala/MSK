@@ -12,5 +12,6 @@ public enum EventType {
     ORDER_FILLED,
     OBJECT_UPDATE,
     OBJECT_REGISTERED,
-    OBJECT_DELETED
+    OBJECT_DELETED,
+    FINISH
 }

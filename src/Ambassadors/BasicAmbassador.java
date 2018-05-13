@@ -32,6 +32,8 @@ public class BasicAmbassador extends NullFederateAmbassador {
 
     protected BasicFederate federate;
 
+    public InteractionClassHandle finish;
+
     public List<FederationTimedEvent> federationTimedEvents;
     public List<FederationEvent> federationNonTimedEvents;
     protected Map<ObjectInstanceHandle, ObjectClassHandle> instanceClassMap;
@@ -51,8 +53,6 @@ public class BasicAmbassador extends NullFederateAmbassador {
         federationNonTimedEvents = new ArrayList<>();
         instanceClassMap = new HashMap<>();
     }
-
-
 
     protected void log( String message )
     {
@@ -246,6 +246,10 @@ public class BasicAmbassador extends NullFederateAmbassador {
         log( "Object Removed: handle=" + theObject );
     }
 
+    public void stop() {
+        running = false;
+    }
+
     public double getFederateTime() {
         return federateTime;
     }
@@ -297,4 +301,6 @@ public class BasicAmbassador extends NullFederateAmbassador {
     public void setFederateLookahead(double federateLookahead) {
         this.federateLookahead = federateLookahead;
     }
+
+
 }

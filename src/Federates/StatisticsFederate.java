@@ -2,6 +2,7 @@ package Federates;
 
 import Ambassadors.StatisticsAmbassador;
 import Federates.FederatesInternal.ClientStatistics;
+import FomInteractions.Events.EventType;
 import FomInteractions.Events.FederationEvent;
 import FomInteractions.Events.FederationTimedEvent;
 import FomInteractions.Events.TimedEventComparator;
@@ -10,18 +11,18 @@ import FomInteractions.Interactions.TableInteraction;
 import hla.rti1516e.InteractionClassHandle;
 import hla.rti1516e.ParameterHandle;
 import hla.rti1516e.exceptions.RTIexception;
-import org.portico.lrc.model.Mom;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class StatisticsFederate extends BasicFederate {
 
     private Map<Integer, ClientStatistics> clientStatistics;
+    private Map<Integer, ClientStatistics> impatientClientStatistics;
 
     protected StatisticsFederate(String federateName) {
         super(federateName);
         clientStatistics = new HashMap<>();
+        impatientClientStatistics = new HashMap<>();
     }
 
     @Override
@@ -62,13 +63,16 @@ public class StatisticsFederate extends BasicFederate {
                 ClientInteraction clientInteraction = (ClientInteraction)event;
                 insertStatisticsForClient(convertLogicalTime(event.getTime()), clientInteraction.getClientNumber());
                 break;
-            case SEAT_FREED:
+            case SEAT_TAKEN:
                 TableInteraction tableInteraction = (TableInteraction)event;
                 updateStatisticsForClient(convertLogicalTime(event.getTime()), tableInteraction.getClientNumber());
                 break;
             case CLIENT_LEFT_QUEUE:
                 clientInteraction = (ClientInteraction)event;
-                eraseStatisticsForClient(clientInteraction.getClientNumber());
+                eraseStatisticsForClient(convertLogicalTime(event.getTime()), clientInteraction.getClientNumber());
+                break;
+            case FINISH:
+                federateAmbassador.stop();
                 break;
         }
     }
@@ -95,9 +99,20 @@ public class StatisticsFederate extends BasicFederate {
 
             if(federateAmbassador.federationTimedEvents.size() > 0) {
                 federateAmbassador.federationTimedEvents.sort(new TimedEventComparator());
-                int lastEventIndex = federateAmbassador.federationTimedEvents.size() - 1;
-                //timeToAdvance = convertLogicalTime(federateAmbassador.federationTimedEvents.get(lastEventIndex).getTime());
+                List<FederationTimedEvent> arrivals = new ArrayList<>();
+                List<FederationTimedEvent> awaitEnds = new ArrayList<>();
                 for(FederationTimedEvent event: federateAmbassador.federationTimedEvents) {
+                    if(event.getType() == EventType.CLIENT_ARRIVED) {
+                        arrivals.add(event);
+                    }
+                    if((event.getType() == EventType.SEAT_TAKEN) || (event.getType() == EventType.CLIENT_LEFT_QUEUE)) {
+                        awaitEnds.add(event);
+                    }
+                }
+                for(FederationTimedEvent event: arrivals) {
+                    processFederationTimedEvent(event);
+                }
+                for(FederationTimedEvent event: awaitEnds) {
                     processFederationTimedEvent(event);
                 }
                 federateAmbassador.federationTimedEvents.clear();
@@ -110,15 +125,19 @@ public class StatisticsFederate extends BasicFederate {
     }
 
     public static void main(String[] args) {
-        try {
-            String federateName = "StatisticsFederate";
-            boolean timeConstrained = true;
-            boolean timeRegulating = true;
+        String federateName = "StatisticsFederate";
+        boolean timeConstrained = true;
+        boolean timeRegulating = true;
 
-            new StatisticsFederate(federateName).runFederate(timeConstrained, timeRegulating);
+        StatisticsFederate statistics = new StatisticsFederate(federateName);
+        try {
+            statistics.runFederate(timeConstrained, timeRegulating);
         } catch (RTIexception rtIexception) {
             rtIexception.printStackTrace();
         }
+
+        statistics.calculateAverageAwaitTime(false);
+        statistics.calculateAverageAwaitTime(true);
     }
 
     private void insertStatisticsForClient(double time, int clientNumber) {
@@ -129,13 +148,39 @@ public class StatisticsFederate extends BasicFederate {
 
     private void updateStatisticsForClient(double time, int clientNumber) {
         ClientStatistics statistics = clientStatistics.get(clientNumber);
-        statistics.setSeatTakenTime(time);
+        statistics.setAwaitEndTime(time);
         clientStatistics.put(clientNumber, statistics);
         log("Client " + clientNumber + " taking seat time: " + time + " saved to statistics");
     }
 
-    private void eraseStatisticsForClient(int clientNumber) {
+    private void eraseStatisticsForClient(double time, int clientNumber) {
+        ClientStatistics statistics = clientStatistics.get(clientNumber);
+        statistics.setAwaitEndTime(time);
+        impatientClientStatistics.put(clientNumber, statistics);
         clientStatistics.remove(clientNumber);
-        log("Client " + clientNumber + " removed from statistics due to his impatience");
+        log("Client " + clientNumber + " moved into separate statistics list due to his impatience");
     }
+
+    public void calculateAverageAwaitTime(boolean includeImpatientClients) {
+        double timeSum = 0.0;
+        int count = clientStatistics.size();
+        Collection<ClientStatistics> statistics = clientStatistics.values();
+        for(ClientStatistics statistic: statistics) {
+            if(statistic.getAwaitEndTime() != null) {
+                timeSum += (statistic.getAwaitEndTime() - statistic.getArrivalTime());
+            }
+        }
+        if(includeImpatientClients) {
+            count += impatientClientStatistics.size();
+            Collection<ClientStatistics> impatientStatistics = impatientClientStatistics.values();
+            for(ClientStatistics statistic: impatientStatistics) {
+                if(statistic.getAwaitEndTime() != null) {
+                    timeSum += (statistic.getAwaitEndTime() - statistic.getArrivalTime());
+                }
+            }
+        }
+        double averageAwaitTime = timeSum/((double)count);
+        log("Average await time: " + averageAwaitTime);
+    }
+
 }

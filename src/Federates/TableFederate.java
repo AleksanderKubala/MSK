@@ -86,6 +86,9 @@ public class TableFederate extends BasicFederate {
             case SEAT_TAKEN:
                 seatTaken(time + federateAmbassador.getFederateLookahead(), ((TableInteraction)event).getTableNumber());
                 break;
+            case FINISH:
+                federateAmbassador.stop();
+                break;
         }
     }
 

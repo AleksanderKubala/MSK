@@ -35,10 +35,15 @@ public abstract class BasicFederate {
 
     protected String signature;
 
+    protected double simulationFinishTime;
+
+    //public InteractionClassHandle finish;
+
     protected BasicFederate(String federateName) {
         signature = federateName;
         internalEvents = new ArrayList<>();
         currentInternalEvents = new ArrayList<>();
+        simulationFinishTime = 1000.0;
     }
 
     protected abstract void publishAndSubscribe() throws RTIexception;
@@ -64,92 +69,12 @@ public abstract class BasicFederate {
         registerSynchronizationPoint();
         waitForUser(" >>>>>>>>>> Press Enter to Continue <<<<<<<<<<");
         awaitFederationSynchronization();
-
-
     }
 
     protected void configurateFederate(boolean timeConstrained, boolean timeRegulating) throws RTIexception {
         setTimePolicy(timeConstrained, timeRegulating);
         publishAndSubscribe();
     }
-
-    /*
-    protected void runFederate(boolean timeConstrained, boolean timeRegulating) throws RTIexception {
-        rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
-        rtiAmbassador = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
-        encoderFactory = RtiFactoryFactory.getRtiFactory().getEncoderFactory();
-        setFederateAmbassador();
-
-        rtiAmbassador.connect(federateAmbassador, CallbackModel.HLA_EVOKED);
-        createFederation();
-
-        joinFederation(signature);
-
-        timeFactory = (HLAfloat64TimeFactory) rtiAmbassador.getTimeFactory();
-
-        registerSynchronizationPoint();
-        waitForUser(" >>>>>>>>>> Press Enter to Continue <<<<<<<<<<");
-        awaitFederationSynchronization();
-
-        setTimePolicy(timeConstrained, timeRegulating);
-        publishAndSubscribe();
-        afterSynchronization();
-
-        while(federateAmbassador.isRunning()) {
-            mainLoop();
-        }
-    }
-
-
-    protected void mainLoop() throws RTIexception {
-
-        boolean internalEventPending = false;
-        double timeToAdvance = federateAmbassador.getFederateTime() + federateAmbassador.getFederateTimeStep();
-        double nextInternalEventTime = 0.0;
-        advanceTime(timeToAdvance);
-
-        if(internalEvents.size() > 0) {
-            internalEvents.sort(new TimedEventComparator());
-            nextInternalEventTime = ((HLAfloat64Time) internalEvents.get(0).getTime()).getValue();
-            timeToAdvance = nextInternalEventTime;
-            nextEventRequest(timeToAdvance);
-            internalEventPending = true;
-        }
-
-        if(federateAmbassador.federationNonTimedEvents.size() > 0) {
-            for(FederationEvent event: federateAmbassador.federationNonTimedEvents) {
-                processFederationNonTimedEvent(event);
-            }
-            federateAmbassador.federationNonTimedEvents.clear();
-        }
-
-        if(federateAmbassador.federationTimedEvents.size() > 0) {
-            federateAmbassador.federationTimedEvents.sort(new TimedEventComparator());
-            for(FederationTimedEvent event: federateAmbassador.federationTimedEvents) {
-                processFederationTimedEvent(event);
-            }
-            int lastIndex = federateAmbassador.federationTimedEvents.size() - 1;
-            LogicalTime logicalEventTime = federateAmbassador.federationTimedEvents.get(lastIndex).getTime();
-            advanceTime(logicalEventTime);
-            timeToAdvance = convertLogicalTime(logicalEventTime);
-            federateAmbassador.federationTimedEvents.clear();
-        }
-
-        if( timeToAdvance > 0.0) {
-            if (federateAmbassador.getGrantedTime() == timeToAdvance) {
-                if(federateAmbassador.isRegulating()) {
-                    timeToAdvance += federateAmbassador.getFederateLookahead();
-                }
-                federateAmbassador.setFederateTime(timeToAdvance);
-                if(internalEventPending) {
-                    if (federateAmbassador.getFederateTime() >= nextInternalEventTime) {
-                        processNextInternalEvent(internalEvents.get(0));
-                        internalEvents.remove(0);
-                    }
-                }
-            }
-        }
-    }*/
 
     protected void log( String message )
     {
@@ -241,7 +166,6 @@ public abstract class BasicFederate {
     protected void setTimePolicy(boolean timeConstrained, boolean timeRegulating) throws RTIexception{
 
         LogicalTimeInterval lookahead = convertInterval( federateAmbassador.getFederateLookahead() );
-        //LogicalTimeInterval interval = timeFactory.makeInterval()
 
         if(timeRegulating) {
             rtiAmbassador.enableTimeRegulation(lookahead);

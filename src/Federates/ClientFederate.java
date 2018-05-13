@@ -180,7 +180,9 @@ public class ClientFederate extends BasicFederate {
                         clientArrived.getClientNumber(),
                         generateClient(getNextTime(), clientArrived.getClientNumber()));
                 sendClientInteraction(getNextTime(), clientArrived.getClientNumber(), EventType.CLIENT_ARRIVED);
-                generateClientArrivedEvent();
+                if(federateAmbassador.getFederateTime() <= simulationFinishTime) {
+                    generateClientArrivedEvent();
+                }
                 break;
             case CLIENT_LEFT_QUEUE:
                 ClientInteraction clientLeftQueue = (ClientInteraction)event;
@@ -214,9 +216,6 @@ public class ClientFederate extends BasicFederate {
             case ORDER_PLACED:
                 DishOrderInteraction orderPlaced = (DishOrderInteraction)event;
                 sendDishOrderInteraction(getNextTime(), orderPlaced.getClientNumber(), orderPlaced.getDishNumber(), EventType.ORDER_PLACED);
-                //log("(time: " + getNextTime()
-                //        + "): Client " + orderPlaced.getClientNumber()
-                //        + " was serviced and placed order for Dish " + orderPlaced.getDishNumber());
                 break;
         }
     }
@@ -239,11 +238,19 @@ public class ClientFederate extends BasicFederate {
             double timeToAdvance = getNextTime();
 
             if(!clientsQueue.isEmpty()) {
+                boolean seated = false;
+                List<Integer> clientsSeated = new ArrayList<>();
                 if (!tableInstanceMap.isEmpty()) {
                     Collection<Client> clients = clientsQueue.values();
                     for(Client client: clients) {
-                        seatClient(client, timeToAdvance);
+                        seated = seatClient(client, timeToAdvance);
+                        if(seated) {
+                            clientsSeated.add(client.getClientNumber());
+                        }
                     }
+                }
+                for(Integer index: clientsSeated) {
+                    clientsQueue.remove(index);
                 }
             }
 
@@ -287,7 +294,22 @@ public class ClientFederate extends BasicFederate {
                     }
                 }
             }
+
+            /*
+            if(federateAmbassador.getFederateTime() >= simulationFinishTime) {
+                if (clientsQueue.isEmpty()) {
+                    if (clientsInside.isEmpty()) {
+                        if (internalEvents.isEmpty()) {
+                            ParameterHandleValueMap params = rtiAmbassador.getParameterHandleValueMapFactory().create(0);
+                            rtiAmbassador.sendInteraction(finish, params, generateTag(), convertTime(getNextTime()));
+                            federateAmbassador.stop();
+                        }
+                    }
+                }
+            }*/
         }
+
+        finish();
     }
 
     private Client generateClient(double time, int clientNumber) throws RTIexception {
@@ -313,23 +335,26 @@ public class ClientFederate extends BasicFederate {
         }
     }
 
-    private void seatClient(Client client, double time) throws RTIexception {
+    private boolean seatClient(Client client, double time) throws RTIexception {
 
         boolean found = false;
         Collection<Table> tables = tableInstanceMap.values();
         Iterator<Table> iterator = tables.iterator();
         while((iterator.hasNext()) && (!found)) {
             Table table = iterator.next();
-            if(table.getFreeSeatsNow() > 0) {
-                found = true;
-                internalEvents.remove(client.getClientImpatient());
-                clientsInside.put(client.getClientNumber(), client);
-                clientsQueue.remove(client.getClientNumber());
-                client.setTableNumber(table.getTableNumber());
-                sendTableInteraction(getNextTime(), client.getClientNumber(), table.getTableNumber(), EventType.SEAT_TAKEN);
-                sendClientInteraction(getNextTime(), client.getClientNumber(), EventType.CLIENT_WAITING);
+            if(table.isUpToDate()) {
+                if (table.getFreeSeatsNow() > 0) {
+                    found = true;
+                    internalEvents.remove(client.getClientImpatient());
+                    clientsInside.put(client.getClientNumber(), client);
+                    client.setTableNumber(table.getTableNumber());
+                    table.setUpToDate(false);
+                    sendTableInteraction(getNextTime(), client.getClientNumber(), table.getTableNumber(), EventType.SEAT_TAKEN);
+                    sendClientInteraction(getNextTime(), client.getClientNumber(), EventType.CLIENT_WAITING);
+                }
             }
         }
+        return found;
     }
 
 
@@ -393,8 +418,10 @@ public class ClientFederate extends BasicFederate {
 
     private void updateTable(double time, Table table) {
         Table cachedTable = tableInstanceMap.putIfAbsent(table.getTableNumber(), table);
-        if(cachedTable != null)
+        if(cachedTable != null) {
             cachedTable.setFreeSeatsNow(table.getFreeSeatsNow());
+            cachedTable.setUpToDate(true);
+        }
         log("Received Table instance: TableNumber: " + table.getTableNumber() + ", freeSeats: " + table.getFreeSeatsNow());
     }
 
