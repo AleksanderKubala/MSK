@@ -67,11 +67,11 @@ public class ClientAmbassador extends BasicAmbassador{
             int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
             int dishNumber = theParameters.getValueReference(dishNumberParamHandle).getInt();
             builder.append("Client number: " + clientNumber);
-            DishOrderInteraction interaction = new DishOrderInteraction(time, EventType.ORDER_FILLED, clientNumber, dishNumber);
+            DishOrderInteraction interaction = new DishOrderInteraction(time, EventType.ORDER_FILLED, clientNumber, dishNumber, -1);
             federationTimedEvents.add(interaction);
         }
 
-        log(builder.toString());
+        //log(builder.toString());
     }
 
     @Override
@@ -102,7 +102,7 @@ public class ClientAmbassador extends BasicAmbassador{
                     retrieveDishObject(theObject, theAttributes)));
         }
 
-        log(builder.toString());
+        //log(builder.toString());
 
     }
 
@@ -121,8 +121,8 @@ public class ClientAmbassador extends BasicAmbassador{
         ByteWrapper consumptionTimeWrapper = attributes.getValueReference(consumptionTimeAttrHandle);
 
         int dishNumber = dishNumberWrapper.getInt();
-        double consumptionTime = (double)consumptionTimeWrapper.getInt();
+        int consumptionTime = consumptionTimeWrapper.getInt();
 
-        return new Dish(handle, dishNumber, consumptionTime, 0.0);
+        return new Dish(handle, dishNumber, consumptionTime, 0);
     }
 }

@@ -19,7 +19,7 @@ public class StatisticsAmbassador extends BasicAmbassador {
     public StatisticsAmbassador(BasicFederate federate) {
         super(federate);
         signature = "StatisticsAmbassador";
-        federateLookahead = 1.0;
+        federateLookahead = 100.0;
     }
 
     @Override

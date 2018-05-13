@@ -86,9 +86,11 @@ public class WaiterFederate extends BasicFederate {
     protected void processNextInternalEvent(FederationTimedEvent event) throws RTIexception {
         switch(event.getType()) {
             case CLIENT_SERVICED:
+                double time = convertLogicalTime(event.getTime());
                 WaiterInteraction clientServiced = (WaiterInteraction)event;
                 waitersList.add(clientServiced.getWaiterNumber());
                 sendWaiterInteraction(getNextTime(), clientServiced.getClientNumber(), clientServiced.getWaiterNumber());
+                //log("(time: " + time + "): Handling internal event: Service: Client " + clientServiced.getClientNumber() +  ", Waiter " + clientServiced.getWaiterNumber());
                 break;
         }
     }
@@ -103,10 +105,12 @@ public class WaiterFederate extends BasicFederate {
         configurateFederate(timeConstrained, timeRegulating);
         afterSynchronization();
 
+        double nextInternalEventTime = 0.0;
+        boolean internalEventsPending = false;
+
         while(federateAmbassador.isRunning()) {
-            boolean internalEventsPending = false;
+
             double timeToAdvance = getNextTime();
-            double nextInternalEventTime = 0.0;
 
             if(!clientsWaiting.isEmpty()) {
                 int counter = 0;
@@ -120,15 +124,16 @@ public class WaiterFederate extends BasicFederate {
                 }
             }
 
-            if(internalEvents.size() > 0) {
-                internalEvents.sort(new TimedEventComparator());
-                timeToAdvance =  ((HLAfloat64Time) internalEvents.get(0).getTime()).getValue();
-                nextInternalEventTime = timeToAdvance;
-                internalEventsPending = true;
-                retrieveCurrentInternalEvents(timeToAdvance);
-            }
-
             advanceTime(timeToAdvance);
+
+            if(!internalEventsPending) {
+                if (internalEvents.size() > 0) {
+                    internalEvents.sort(new TimedEventComparator());
+                    nextInternalEventTime = ((HLAfloat64Time) internalEvents.get(0).getTime()).getValue();
+                    internalEventsPending = true;
+                    retrieveCurrentInternalEvents(nextInternalEventTime);
+                }
+            }
 
             if(federateAmbassador.federationTimedEvents.size() > 0) {
                 federateAmbassador.federationTimedEvents.sort(new TimedEventComparator());
@@ -142,13 +147,13 @@ public class WaiterFederate extends BasicFederate {
 
             if (federateAmbassador.getGrantedTime() == timeToAdvance) {
                 federateAmbassador.setFederateTime(timeToAdvance);
-                //log("Time advanced to: " + timeToAdvance);
                 if(internalEventsPending) {
                     if (federateAmbassador.getFederateTime() >= nextInternalEventTime) {
                         for(FederationTimedEvent event: currentInternalEvents) {
                             processNextInternalEvent(event);
                         }
                         currentInternalEvents.clear();
+                        internalEventsPending = false;
                     }
                 }
             }
@@ -164,7 +169,7 @@ public class WaiterFederate extends BasicFederate {
         params.put(waiterNumberParamHandle, waiterNumberValue.toByteArray());
 
         HLAfloat64Time timeValue = timeFactory.makeTime(currentTime);
-        log("(time: " + time + "): Client " + clientNumber + " serviced.");
+        log("(time: " + time + "): Client " + clientNumber + " serviced by Waiter " + waiterNumber);
         rtiAmbassador.sendInteraction(clientServicedHandle, params, generateTag(), timeValue);
     }
 
@@ -179,14 +184,15 @@ public class WaiterFederate extends BasicFederate {
                 clientNumber,
                 waiterNumber);
         internalEvents.add(clientServiced);
-        log("(time: " + time + "): Client " + clientNumber + " is being serviced.");
+        //log("(time: " + time + "): Created internal event: Service: Client " + clientNumber +  ", Waiter " + waiterNumber + " at time " + serviceFinishedTime);
+        log("(time: " + time + "): Client " + clientNumber + " is being serviced by Waiter " + waiterNumber);
      }
 
      public static void main(String[] args) {
 
         String federateName = "WaiterFederate";
-        int waitersCount = 1;
-        int averageServicingTime = 15;
+        int waitersCount = 2;
+        int averageServicingTime = 25;
         int servicingDeviation = 2;
          try {
              new WaiterFederate(federateName, waitersCount, averageServicingTime, servicingDeviation).runFederate(true, true);

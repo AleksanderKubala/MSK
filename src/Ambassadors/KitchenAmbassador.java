@@ -31,7 +31,7 @@ public class KitchenAmbassador extends BasicAmbassador {
         int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
         int dishNumber = theParameters.getValueReference(dishNumberParamHandle).getInt();
         builder.append("Table number: " + clientNumber + ", Dish number: " + dishNumber);
-        DishOrderInteraction interaction = new DishOrderInteraction(time, EventType.ORDER_PLACED, clientNumber, dishNumber);
+        DishOrderInteraction interaction = new DishOrderInteraction(time, EventType.ORDER_PLACED, clientNumber, dishNumber, -1);
         federationTimedEvents.add(interaction);
 
         log(builder.toString());

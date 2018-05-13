@@ -5,10 +5,10 @@ import hla.rti1516e.ObjectInstanceHandle;
 public class Dish extends BasicFomObject{
 
     private int dishNumber;
-    private double consumptionTime;
-    private double preparationTime;
+    private int consumptionTime;
+    private int preparationTime;
 
-    public Dish(ObjectInstanceHandle instanceHandle, int dishNumber, double consumptionTime, double preparationTime) {
+    public Dish(ObjectInstanceHandle instanceHandle, int dishNumber, int consumptionTime, int preparationTime) {
         super(instanceHandle);
         this.dishNumber = dishNumber;
         this.consumptionTime = consumptionTime;
@@ -19,11 +19,11 @@ public class Dish extends BasicFomObject{
         return dishNumber;
     }
 
-    public double getConsumptionTime() {
+    public int getConsumptionTime() {
         return consumptionTime;
     }
 
-    public double getPreparationTime() {
+    public int getPreparationTime() {
         return preparationTime;
     }
 }

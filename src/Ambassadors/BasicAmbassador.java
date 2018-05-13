@@ -39,7 +39,7 @@ public class BasicAmbassador extends NullFederateAmbassador {
     BasicAmbassador(BasicFederate federate) {
         federateTime = 0.0;
         federateTimeStep = 1.0;
-        federateLookahead = 0.0;
+        federateLookahead = 1.0;
         isRegulating = false;
         isConstrained = false;
         isAdvancing = false;
