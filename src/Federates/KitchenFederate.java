@@ -80,12 +80,15 @@ public class KitchenFederate extends BasicFederate {
         rtiAmbassador.publishInteractionClass(orderFilledHandle);
 
         InteractionClassHandle orderPlacedHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.DishOrderInteraction.OrderPlaced");
+        InteractionClassHandle finishHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.FinishInteraction");
 
         ((KitchenAmbassador)federateAmbassador).orderPlacedHandle = orderPlacedHandle;
         ((KitchenAmbassador)federateAmbassador).clientNumberParamHandle = clientNumberParamHandle;
         ((KitchenAmbassador)federateAmbassador).dishNumberParamHandle = dishNumberParamHandle;
+        ((KitchenAmbassador)federateAmbassador).finishHandle = finishHandle;
 
         rtiAmbassador.subscribeInteractionClass(orderPlacedHandle);
+        rtiAmbassador.subscribeInteractionClass(finishHandle);
     }
 
     @Override
@@ -104,6 +107,10 @@ public class KitchenFederate extends BasicFederate {
             case ORDER_PLACED:
                 DishOrderInteraction orderPlaced = (DishOrderInteraction)event;
                 dishRequests.add(orderPlaced);
+                break;
+            case FINISH:
+                log("Received Finishing interaction. Finishing.");
+                federateAmbassador.stop();
                 break;
         }
     }
@@ -186,6 +193,13 @@ public class KitchenFederate extends BasicFederate {
                 }
             }
         }
+
+        Collection<Dish> dishes = dishInstanceMap.values();
+        for(Dish dish: dishes) {
+            deleteObject(dish.getInstanceHandle());;
+        }
+
+        finish();
     }
 
     private void registerDishInstances() throws RTIexception{

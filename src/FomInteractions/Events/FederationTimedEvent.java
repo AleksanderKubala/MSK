@@ -2,7 +2,7 @@ package FomInteractions.Events;
 
 import hla.rti1516e.LogicalTime;
 
-public abstract class FederationTimedEvent extends FederationEvent{
+public  class FederationTimedEvent extends FederationEvent{
 
     private LogicalTime time;
 

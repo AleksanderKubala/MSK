@@ -34,16 +34,19 @@ public class StatisticsFederate extends BasicFederate {
         InteractionClassHandle clientArrivedHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.ClientArrived");
         InteractionClassHandle clientLeftQueueHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.ClientLeftQueue");
         ParameterHandle clientNumberParamHandle = rtiAmbassador.getParameterHandle(clientArrivedHandle, "clientNumber");
+        InteractionClassHandle finishHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.FinishInteraction");
 
         ((StatisticsAmbassador)federateAmbassador).seatTakenHandle = seatTakenHandle;
         ((StatisticsAmbassador)federateAmbassador).tableNumberParamHandle = tableNumberParamHandle;
         ((StatisticsAmbassador)federateAmbassador).clientArrivedHandle = clientArrivedHandle;
         ((StatisticsAmbassador)federateAmbassador).clientLeftQueueHandle = clientLeftQueueHandle;
         ((StatisticsAmbassador)federateAmbassador).clientNumberParamHandle = clientNumberParamHandle;
+        ((StatisticsAmbassador)federateAmbassador).finishHandle = finishHandle;
 
         rtiAmbassador.subscribeInteractionClass(seatTakenHandle);
         rtiAmbassador.subscribeInteractionClass(clientArrivedHandle);
         rtiAmbassador.subscribeInteractionClass(clientLeftQueueHandle);
+        rtiAmbassador.subscribeInteractionClass(finishHandle);
     }
 
     @Override
@@ -72,6 +75,7 @@ public class StatisticsFederate extends BasicFederate {
                 eraseStatisticsForClient(convertLogicalTime(event.getTime()), clientInteraction.getClientNumber());
                 break;
             case FINISH:
+                log("Received Finishing interaction. Finishing.");
                 federateAmbassador.stop();
                 break;
         }
@@ -101,18 +105,23 @@ public class StatisticsFederate extends BasicFederate {
                 federateAmbassador.federationTimedEvents.sort(new TimedEventComparator());
                 List<FederationTimedEvent> arrivals = new ArrayList<>();
                 List<FederationTimedEvent> awaitEnds = new ArrayList<>();
+                List<FederationTimedEvent> other = new ArrayList<>();
                 for(FederationTimedEvent event: federateAmbassador.federationTimedEvents) {
                     if(event.getType() == EventType.CLIENT_ARRIVED) {
                         arrivals.add(event);
-                    }
-                    if((event.getType() == EventType.SEAT_TAKEN) || (event.getType() == EventType.CLIENT_LEFT_QUEUE)) {
+                    } else if((event.getType() == EventType.SEAT_TAKEN) || (event.getType() == EventType.CLIENT_LEFT_QUEUE)) {
                         awaitEnds.add(event);
+                    } else {
+                        other.add(event);
                     }
                 }
                 for(FederationTimedEvent event: arrivals) {
                     processFederationTimedEvent(event);
                 }
                 for(FederationTimedEvent event: awaitEnds) {
+                    processFederationTimedEvent(event);
+                }
+                for(FederationTimedEvent event: other) {
                     processFederationTimedEvent(event);
                 }
                 federateAmbassador.federationTimedEvents.clear();
@@ -122,6 +131,8 @@ public class StatisticsFederate extends BasicFederate {
                 federateAmbassador.setFederateTime(timeToAdvance);
             }
         }
+
+        finish();
     }
 
     public static void main(String[] args) {
@@ -136,7 +147,9 @@ public class StatisticsFederate extends BasicFederate {
             rtIexception.printStackTrace();
         }
 
+        statistics.log("Average await time without impatient clients");
         statistics.calculateAverageAwaitTime(false);
+        statistics.log("Average await time with impatient clients");
         statistics.calculateAverageAwaitTime(true);
     }
 

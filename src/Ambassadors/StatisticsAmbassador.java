@@ -16,6 +16,7 @@ public class StatisticsAmbassador extends BasicAmbassador {
     public InteractionClassHandle seatTakenHandle;
     public ParameterHandle tableNumberParamHandle;
 
+    public InteractionClassHandle finishHandle;
 
     public StatisticsAmbassador(BasicFederate federate) {
         super(federate);
@@ -57,6 +58,10 @@ public class StatisticsAmbassador extends BasicAmbassador {
                 TableInteraction interaction = new TableInteraction(time, EventType.SEAT_TAKEN, tableNumber, clientNumber);
                 federationTimedEvents.add(interaction);
             }
+        if(interactionClass.equals(finishHandle)) {
+            FederationTimedEvent finish = new FederationTimedEvent(time, EventType.FINISH);
+            federationTimedEvents.add(finish);
+        }
             log(builder.toString());
 
     }

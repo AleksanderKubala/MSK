@@ -55,10 +55,15 @@ public class WaiterFederate extends BasicFederate {
         rtiAmbassador.publishInteractionClass(clientServicedHandle);
 
         InteractionClassHandle clientWaitingHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.ClientWaiting");
+
+        InteractionClassHandle finishHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.FinishInteraction");
+
         ((WaiterAmbassador)federateAmbassador).clientWaitingHandle = clientWaitingHandle;
         ((WaiterAmbassador)federateAmbassador).clientNumberParamHandle = clientNumberParamHandke;
+        ((WaiterAmbassador)federateAmbassador).finishHandle = finishHandle;
 
         rtiAmbassador.subscribeInteractionClass(clientWaitingHandle);
+        rtiAmbassador.subscribeInteractionClass(finishHandle);
     }
 
     @Override
@@ -80,6 +85,7 @@ public class WaiterFederate extends BasicFederate {
                 clientsWaiting.add(clientWaiting.getClientNumber());
                 break;
             case FINISH:
+                log("Received Finishing interaction. Finishing.");
                 federateAmbassador.stop();
                 break;
         }
@@ -161,6 +167,8 @@ public class WaiterFederate extends BasicFederate {
                 }
             }
         }
+
+        finish();
     }
 
     private void sendWaiterInteraction(double time, int clientNumber, int waiterNumber) throws RTIexception {

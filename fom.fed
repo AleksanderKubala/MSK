@@ -26,6 +26,7 @@
   (interactions
     (class InteractionRoot reliable timestamp
       (class RTIprivate reliable timestamp)
+      (class FinishInteraction reliable timestamp)
       (class ClientInteraction reliable timestamp
         (parameter clientNumber)
         (class ClientArrived reliable timestamp)

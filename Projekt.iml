@@ -10,7 +10,7 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="jar://D:/Program Files (x86)/Portico/portico-2016.05.28/lib/portico.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../portico-2016.05.28/lib/portico.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

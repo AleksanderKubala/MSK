@@ -35,6 +35,8 @@ public class ClientFederate extends BasicFederate {
     public InteractionClassHandle seatFreedHandle;
     public ParameterHandle tableNumberParamHandle;
 
+    public InteractionClassHandle finishHandle;
+
     private double impatienceProbability;
     private int minImpatienceTime;
     private int maxImpatienceTime;
@@ -86,12 +88,15 @@ public class ClientFederate extends BasicFederate {
         seatFreedHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.ClientInteraction.TableInteraction.SeatFreed");
         tableNumberParamHandle = rtiAmbassador.getParameterHandle(seatFreedHandle, "tableNumber");
 
+        finishHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.FinishInteraction");
+
         rtiAmbassador.publishInteractionClass(clientWaitingHandle);
         rtiAmbassador.publishInteractionClass(clientLeftQueueHandle);
         rtiAmbassador.publishInteractionClass(clientArrivedHandle);
         rtiAmbassador.publishInteractionClass(orderPlacedHandle);
         rtiAmbassador.publishInteractionClass(seatFreedHandle);
         rtiAmbassador.publishInteractionClass(seatTakenHandle);
+        rtiAmbassador.publishInteractionClass(finishHandle);
 
         ObjectClassHandle tableClassHandle = rtiAmbassador.getObjectClassHandle("ObjectRoot.Table");
         AttributeHandle tableNumberHandle = rtiAmbassador.getAttributeHandle(tableClassHandle, "tableNumber");
@@ -197,7 +202,7 @@ public class ClientFederate extends BasicFederate {
                 log("(time: " + getNextTime() + "): Client " + client.getClientNumber() + " finished his meal. "
                         + "Total meals eaten: " + client.getMealsEaten());
                 boolean nextMeal = true;
-                if(client.getMealsEaten() > maxMealsToEat) {
+                if(client.getMealsEaten() >= maxMealsToEat) {
                     nextMeal = false;
                 }
                 if(random.nextDouble() <= nextMealProbability) {
@@ -295,18 +300,17 @@ public class ClientFederate extends BasicFederate {
                 }
             }
 
-            /*
+
             if(federateAmbassador.getFederateTime() >= simulationFinishTime) {
                 if (clientsQueue.isEmpty()) {
                     if (clientsInside.isEmpty()) {
                         if (internalEvents.isEmpty()) {
-                            ParameterHandleValueMap params = rtiAmbassador.getParameterHandleValueMapFactory().create(0);
-                            rtiAmbassador.sendInteraction(finish, params, generateTag(), convertTime(getNextTime()));
+                            sendFinishInteraction(getNextTime(), EventType.FINISH);
                             federateAmbassador.stop();
                         }
                     }
                 }
-            }*/
+            }
         }
 
         finish();
@@ -414,6 +418,19 @@ public class ClientFederate extends BasicFederate {
                 rtiAmbassador.sendInteraction(orderPlacedHandle, params, generateTag(), timeValue);
                 break;
         }
+    }
+
+    private void sendFinishInteraction(double time, EventType type) throws RTIexception {
+        ParameterHandleValueMap params = rtiAmbassador.getParameterHandleValueMapFactory().create(1);
+        HLAfloat64Time timeValue = timeFactory.makeTime(time);
+
+        switch(type) {
+            case FINISH:
+                log("(time: " + time + "): Sending FinishInteraction");
+                rtiAmbassador.sendInteraction(finishHandle, params, generateTag(), timeValue);
+                break;
+        }
+
     }
 
     private void updateTable(double time, Table table) {

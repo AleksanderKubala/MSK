@@ -43,7 +43,7 @@ public abstract class BasicFederate {
         signature = federateName;
         internalEvents = new ArrayList<>();
         currentInternalEvents = new ArrayList<>();
-        simulationFinishTime = 1000.0;
+        simulationFinishTime = 50.0;
     }
 
     protected abstract void publishAndSubscribe() throws RTIexception;
@@ -234,6 +234,7 @@ public abstract class BasicFederate {
     protected void deleteObject( ObjectInstanceHandle handle ) throws RTIexception
     {
         rtiAmbassador.deleteObjectInstance( handle, generateTag() );
+        log("Deleting object instance, handle = " + handle);
     }
 
     protected short getTimeAsShort()

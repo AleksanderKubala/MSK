@@ -16,6 +16,8 @@ public class TableAmbassador extends BasicAmbassador {
     public ParameterHandle tableNumberParamHandle;
     public ParameterHandle clientNumberParamHandle;
 
+    public InteractionClassHandle finishHandle;
+
     public TableAmbassador(BasicFederate federate) {
         super(federate);
         signature = "TableAmbassador";
@@ -33,20 +35,26 @@ public class TableAmbassador extends BasicAmbassador {
                                    SupplementalReceiveInfo receiveInfo) {
 
         StringBuilder builder = new StringBuilder("Interaction received (time: " + time.toString() + "): ");
-
-            int tableNumber = theParameters.getValueReference(tableNumberParamHandle).getInt();
-            int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
-            builder.append("Client " + clientNumber);
             if (interactionClass.equals(seatFreedHandle)) {
+                int tableNumber = theParameters.getValueReference(tableNumberParamHandle).getInt();
+                int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
+                builder.append("Client " + clientNumber);
                 builder.append(" freed seat at table " + tableNumber);
                 TableInteraction interaction = new TableInteraction(time, EventType.SEAT_FREED, clientNumber, tableNumber);
                 federationTimedEvents.add(interaction);
             }
             if (interactionClass.equals(seatTakenHandle)) {
+                int tableNumber = theParameters.getValueReference(tableNumberParamHandle).getInt();
+                int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
+                builder.append("Client " + clientNumber);
                 builder.append(" sat at table " + tableNumber);
                 TableInteraction interaction = new TableInteraction(time, EventType.SEAT_TAKEN, clientNumber, tableNumber);
                 federationTimedEvents.add(interaction);
             }
+        if(interactionClass.equals(finishHandle)) {
+            FederationTimedEvent finish = new FederationTimedEvent(time, EventType.FINISH);
+            federationTimedEvents.add(finish);
+        }
             log(builder.toString());
         }
 }

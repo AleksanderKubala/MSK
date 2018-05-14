@@ -57,13 +57,17 @@ public class TableFederate extends BasicFederate {
         ParameterHandle tableNumberHandle = rtiAmbassador.getParameterHandle(seatTakenHandle, "tableNumber");
         ParameterHandle clientNumberParamHandle = rtiAmbassador.getParameterHandle(seatTakenHandle, "clientNumber");
 
+        InteractionClassHandle finishHandle = rtiAmbassador.getInteractionClassHandle("InteractionRoot.FinishInteraction");
+
         ((TableAmbassador)federateAmbassador).seatTakenHandle = seatTakenHandle;
         ((TableAmbassador)federateAmbassador).seatFreedHandle = seatFreedHandle;
         ((TableAmbassador)federateAmbassador).tableNumberParamHandle = tableNumberHandle;
         ((TableAmbassador)federateAmbassador).clientNumberParamHandle = clientNumberParamHandle;
+        ((TableAmbassador)federateAmbassador).finishHandle = finishHandle;
 
         rtiAmbassador.subscribeInteractionClass(seatTakenHandle);
         rtiAmbassador.subscribeInteractionClass(seatFreedHandle);
+        rtiAmbassador.subscribeInteractionClass(finishHandle);
     }
 
     @Override
@@ -87,6 +91,7 @@ public class TableFederate extends BasicFederate {
                 seatTaken(time + federateAmbassador.getFederateLookahead(), ((TableInteraction)event).getTableNumber());
                 break;
             case FINISH:
+                log("Received Finishing interaction. Finishing.");
                 federateAmbassador.stop();
                 break;
         }
@@ -136,6 +141,8 @@ public class TableFederate extends BasicFederate {
                 for(FederationTimedEvent event: federateAmbassador.federationTimedEvents) {
                     double time = ((HLAfloat64Time)(event.getTime())).getValue();
                     federateAmbassador.setFederateTime(time);
+                    processFederationTimedEvent(event);
+                    /*
                     switch(event.getType()) {
                         case SEAT_FREED:
                             seatFreed(time + federateAmbassador.getFederateLookahead(), ((TableInteraction)event).getTableNumber());
@@ -143,7 +150,7 @@ public class TableFederate extends BasicFederate {
                         case SEAT_TAKEN:
                             seatTaken(time + federateAmbassador.getFederateLookahead(), ((TableInteraction)event).getTableNumber());
                             break;
-                    }
+                    }*/
                 }
                 federateAmbassador.federationTimedEvents.clear();
             }
