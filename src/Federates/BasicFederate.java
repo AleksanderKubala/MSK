@@ -43,7 +43,7 @@ public abstract class BasicFederate {
         signature = federateName;
         internalEvents = new ArrayList<>();
         currentInternalEvents = new ArrayList<>();
-        simulationFinishTime = 50.0;
+        simulationFinishTime = 200.0;
     }
 
     protected abstract void publishAndSubscribe() throws RTIexception;

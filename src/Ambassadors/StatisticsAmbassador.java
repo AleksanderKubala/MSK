@@ -55,7 +55,7 @@ public class StatisticsAmbassador extends BasicAmbassador {
                 int tableNumber = theParameters.getValueReference(tableNumberParamHandle).getInt();
                 int clientNumber = theParameters.getValueReference(clientNumberParamHandle).getInt();
                 builder.append("Table number: " + tableNumber);
-                TableInteraction interaction = new TableInteraction(time, EventType.SEAT_TAKEN, tableNumber, clientNumber);
+                TableInteraction interaction = new TableInteraction(time, EventType.SEAT_TAKEN, clientNumber, tableNumber);
                 federationTimedEvents.add(interaction);
             }
         if(interactionClass.equals(finishHandle)) {

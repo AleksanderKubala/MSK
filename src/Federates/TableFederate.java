@@ -233,9 +233,9 @@ public class TableFederate extends BasicFederate {
         try {
             new TableFederate(
                     "TableFederate",
-                    6,
+                    3,
                     2,
-                    4)
+                    2)
                     .runFederate(
                             true,
                             true);
